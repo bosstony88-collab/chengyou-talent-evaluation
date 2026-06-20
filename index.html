@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>程優教育科技｜主管人才評比系統 3D · CEO 機密</title>
+<style>
+  :root{
+    --bg:#04060d; --ink:#dCEBFF; --dim:#7d8db0; --line:rgba(120,180,255,.18);
+    --cyan:#36e0ff; --amber:#ffb300; --magenta:#ff5ecb; --gold:#ffd34d;
+    --panel:rgba(10,16,30,.82); --panel2:rgba(14,22,40,.92);
+    --good:#54ff9f; --warn:#ffb84d; --bad:#ff5e6e;
+    --font:"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--font);overflow:hidden}
+  canvas{display:block}
+  #app{position:fixed;inset:0}
+  /* deep-space backdrop */
+  #space{position:fixed;inset:0;background:
+     radial-gradient(1200px 800px at 70% 20%, rgba(40,90,160,.18), transparent 60%),
+     radial-gradient(900px 700px at 20% 80%, rgba(120,40,140,.16), transparent 60%),
+     radial-gradient(100% 100% at 50% 50%, #060912 0%, #03050b 70%, #010207 100%);}
+  #scene{position:fixed;inset:0;touch-action:none}
+  /* scanline + vignette overlay */
+  #fx{position:fixed;inset:0;pointer-events:none;z-index:5;
+     background:repeating-linear-gradient(to bottom, rgba(255,255,255,.022) 0 1px, transparent 1px 3px);
+     mix-blend-mode:overlay;opacity:.5}
+  #vig{position:fixed;inset:0;pointer-events:none;z-index:5;
+     box-shadow:inset 0 0 240px 40px rgba(0,0,0,.85)}
+  .corner{position:fixed;width:34px;height:34px;border:2px solid rgba(120,210,255,.45);z-index:7;pointer-events:none;filter:drop-shadow(0 0 6px rgba(54,224,255,.5))}
+  .corner.tl{left:14px;top:14px;border-right:0;border-bottom:0}
+  .corner.tr{right:14px;top:14px;border-left:0;border-bottom:0}
+  .corner.bl{left:14px;bottom:14px;border-right:0;border-top:0}
+  .corner.br{right:14px;bottom:14px;border-left:0;border-top:0}
+
+  /* HUD top bar */
+  #top{position:fixed;left:0;right:0;top:0;z-index:9;display:flex;align-items:center;gap:14px;
+     padding:14px 26px;}
+  #brand{display:flex;flex-direction:column;line-height:1.15}
+  #brand b{font-size:16px;letter-spacing:2px}
+  #brand small{color:var(--cyan);font-size:10.5px;letter-spacing:4px}
+  .chip{font-size:10.5px;letter-spacing:1.5px;color:var(--dim);border:1px solid var(--line);
+     padding:5px 10px;border-radius:20px;background:rgba(10,18,34,.55);white-space:nowrap}
+  .chip b{color:var(--ink)}
+  .lock{color:var(--gold);border-color:rgba(255,211,77,.4)}
+  #spacer{flex:1}
+  .btn{cursor:pointer;font-family:var(--font);font-size:12px;letter-spacing:1px;color:var(--ink);
+     border:1px solid rgba(120,200,255,.35);background:rgba(14,26,48,.6);padding:8px 13px;border-radius:9px;
+     transition:.18s;backdrop-filter:blur(4px)}
+  .btn:hover{border-color:var(--cyan);box-shadow:0 0 16px rgba(54,224,255,.35);color:#fff}
+  .btn.on{border-color:var(--cyan);background:rgba(54,224,255,.15);box-shadow:0 0 16px rgba(54,224,255,.3)}
+
+  /* node labels overlay */
+  #labels{position:fixed;inset:0;z-index:6;pointer-events:none}
+  .nlab{position:absolute;transform:translate(-50%,-140%);pointer-events:auto;cursor:pointer;
+     text-align:center;transition:opacity .25s, filter .25s;will-change:left,top}
+  .nlab .nm{font-size:12.5px;font-weight:700;letter-spacing:.5px;color:#fff;
+     text-shadow:0 0 10px var(--c),0 1px 2px #000;white-space:nowrap}
+  .nlab .code{display:inline-block;min-width:16px;height:16px;line-height:16px;border-radius:5px;font-size:10px;
+     margin-right:5px;color:#04101a;background:var(--c);box-shadow:0 0 10px var(--c);font-weight:800;vertical-align:middle}
+  .nlab .sub{margin-top:3px;font-size:9.5px;color:#bcd2f2;max-width:160px;line-height:1.35;
+     text-shadow:0 1px 3px #000;opacity:.9;white-space:normal}
+  .nlab.hot .nm{transform:scale(1.06)}
+  .nlab.hot{filter:drop-shadow(0 0 8px var(--c))}
+  .axlab{position:absolute;transform:translate(-50%,-50%);pointer-events:none;font-size:12px;font-weight:700;letter-spacing:2px;white-space:nowrap;text-shadow:0 0 12px currentColor,0 1px 2px #000}
+  .axlab small{display:block;font-size:9px;letter-spacing:1px;opacity:.8;font-weight:500}
+
+  /* bottom readout */
+  #bottom{position:fixed;left:0;right:0;bottom:0;z-index:9;display:flex;gap:18px;align-items:center;
+     padding:12px 26px;color:var(--dim);font-size:10.5px;letter-spacing:1.4px}
+  #bottom .rd b{color:var(--cyan)}
+  #hint{margin-left:auto;color:var(--dim)}
+  #hint kbd{color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:10px;background:rgba(255,255,255,.04)}
+
+  /* side drill panel */
+  .panel{position:fixed;top:0;height:100%;width:380px;max-width:88vw;z-index:12;background:var(--panel2);
+     backdrop-filter:blur(10px);border-left:1px solid var(--line);box-shadow:-20px 0 60px rgba(0,0,0,.6);
+     transform:translateX(110%);transition:transform .42s cubic-bezier(.2,.9,.25,1);display:flex;flex-direction:column}
+  #drill{right:0}
+  .panel.open{transform:translateX(0)}
+  .phead{padding:18px 20px;border-bottom:1px solid var(--line);position:relative}
+  .phead .tag{font-size:10px;letter-spacing:3px;color:var(--cyan)}
+  .phead h2{margin:8px 0 2px;font-size:21px;letter-spacing:1px}
+  .phead .px{position:absolute;right:14px;top:14px;cursor:pointer;color:var(--dim);font-size:20px;line-height:1;border:1px solid var(--line);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center}
+  .phead .px:hover{color:#fff;border-color:var(--cyan)}
+  .pbody{padding:18px 20px;overflow:auto;flex:1}
+  .pbody::-webkit-scrollbar{width:8px}.pbody::-webkit-scrollbar-thumb{background:rgba(120,180,255,.25);border-radius:8px}
+  .coord{display:flex;gap:8px;margin:4px 0 16px;flex-wrap:wrap}
+  .coord span{font-size:11px;border:1px solid var(--line);border-radius:7px;padding:5px 9px;letter-spacing:.5px}
+  .hi{color:var(--good);border-color:rgba(84,255,159,.4)!important}
+  .lo{color:var(--bad);border-color:rgba(255,94,110,.4)!important}
+  .kv{margin:14px 0}
+  .kv .k{font-size:10.5px;letter-spacing:2px;color:var(--cyan);margin-bottom:6px}
+  .kv .v{font-size:13.5px;line-height:1.6;color:#dCEBFF}
+  .pill{display:inline-block;font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--line);margin:3px 6px 3px 0}
+  .bigbtn{display:block;width:100%;text-align:center;margin-top:8px;padding:12px;border-radius:10px;cursor:pointer;
+     font-size:13px;letter-spacing:2px;color:#04101a;background:linear-gradient(90deg,var(--cyan),#8be9ff);border:0;font-weight:800;
+     box-shadow:0 0 22px rgba(54,224,255,.4)}
+  .bigbtn.alt{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none;font-weight:600}
+  .bigbtn.alt:hover{border-color:var(--cyan)}
+  .axblock{border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin:12px 0;background:rgba(8,14,28,.5)}
+  .axblock h4{margin:0 0 4px;font-size:14px;letter-spacing:1px}
+  .axblock .wt{font-size:10px;color:var(--dim);letter-spacing:1px}
+  .axblock ul{margin:9px 0 0;padding-left:0;list-style:none}
+  .axblock li{font-size:11.5px;color:#b6c6e6;padding:5px 0;border-top:1px dashed rgba(120,180,255,.12);line-height:1.5}
+  .axblock li b{color:#fff}
+  .axblock li .src{display:block;color:var(--dim);font-size:10px;margin-top:2px}
+
+  /* CEO console (left) */
+  #consolePanel{left:0;border-left:0;border-right:1px solid var(--line);transform:translateX(-110%);box-shadow:20px 0 60px rgba(0,0,0,.6)}
+  #consolePanel.open{transform:translateX(0)}
+  .field{margin:11px 0}
+  .field label{display:block;font-size:10.5px;letter-spacing:1.5px;color:var(--cyan);margin-bottom:5px}
+  .field input,.field select{width:100%;font-family:var(--font);font-size:13px;color:#fff;background:rgba(8,14,28,.8);
+     border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+  .field input:focus,.field select:focus{outline:0;border-color:var(--cyan);box-shadow:0 0 12px rgba(54,224,255,.3)}
+  .grid6{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .dimrow label{display:flex;justify-content:space-between;font-size:11px;color:#b6c6e6;letter-spacing:.4px}
+  .dimrow .w{color:var(--dim);font-size:9.5px}
+  .dimrow input{padding:7px 9px}
+  .modetabs{display:flex;gap:6px;margin:6px 0 12px}
+  .modetabs .btn{flex:1;text-align:center;padding:7px}
+  .seg{font-size:10px;color:var(--dim);letter-spacing:2px;margin:18px 0 6px;border-top:1px solid var(--line);padding-top:12px}
+  #result{margin-top:6px}
+  .scorebar{height:8px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden;margin:5px 0 2px}
+  .scorebar i{display:block;height:100%;border-radius:6px}
+  .resrow{display:flex;justify-content:space-between;font-size:12px;margin-top:9px}
+  .resrow b{font-size:13px}
+  .verdict{margin-top:12px;border-radius:12px;padding:13px;border:1px solid var(--line);background:rgba(8,14,28,.6)}
+  .verdict .t{font-size:18px;font-weight:800;letter-spacing:1px}
+  .verdict .d{font-size:11.5px;color:#b6c6e6;margin-top:6px;line-height:1.55}
+  .saved{margin-top:8px}
+  .savedItem{display:flex;align-items:center;gap:8px;font-size:12px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;margin-top:7px;cursor:pointer;background:rgba(8,14,28,.5)}
+  .savedItem:hover{border-color:var(--cyan)}
+  .savedItem .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .savedItem .si-main{flex:1;min-width:0}
+  .savedItem .ed,.savedItem .rm{flex:none;color:var(--dim);font-size:15px;padding:4px 6px;border-radius:6px}
+  .savedItem .ed:hover{color:var(--cyan);background:rgba(54,224,255,.12)}
+  .savedItem .rm:hover{color:var(--bad);background:rgba(255,94,110,.12)}
+  .muted{color:var(--dim);font-size:11px;line-height:1.5}
+
+  /* passcode gate */
+  #gate{position:fixed;inset:0;z-index:40;background:radial-gradient(100% 100% at 50% 40%,#070b16,#02040a);
+     display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center}
+  #gate .ring{width:120px;height:120px;border-radius:50%;border:2px solid rgba(54,224,255,.25);
+     border-top-color:var(--cyan);animation:spin 2.4s linear infinite;margin-bottom:26px;position:relative}
+  #gate .ring:before{content:"";position:absolute;inset:14px;border-radius:50%;border:1px solid rgba(255,94,203,.3);border-bottom-color:var(--magenta);animation:spin 1.6s linear infinite reverse}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #gate h1{font-size:22px;letter-spacing:4px;margin:0 0 6px}
+  #gate .sec{color:var(--gold);letter-spacing:5px;font-size:11px;margin-bottom:30px}
+  #gate input{font-family:var(--font);text-align:center;letter-spacing:6px;font-size:16px;color:#fff;
+     background:rgba(8,14,28,.85);border:1px solid var(--line);border-radius:10px;padding:13px 18px;width:240px}
+  #gate input:focus{outline:0;border-color:var(--cyan);box-shadow:0 0 20px rgba(54,224,255,.4)}
+  #gate .gbtn{margin-top:16px;width:240px}
+  #gate .err{color:var(--bad);font-size:12px;height:16px;margin-top:12px;letter-spacing:1px}
+  #gate .tiny{position:absolute;bottom:22px;color:var(--dim);font-size:10px;letter-spacing:1px}
+
+  /* boot */
+  #boot{position:fixed;inset:0;z-index:30;background:#02040a;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:opacity .8s}
+  #boot.gone{opacity:0;pointer-events:none}
+  #boot .bt{font-size:13px;letter-spacing:3px;color:var(--cyan);font-family:ui-monospace,monospace}
+  #boot .bar{width:300px;height:3px;background:rgba(255,255,255,.08);border-radius:3px;margin-top:16px;overflow:hidden}
+  #boot .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--magenta));box-shadow:0 0 12px var(--cyan)}
+  .hidden{display:none!important}
+  .btn .bi{display:inline-block}
+
+  /* ---------- 手機版 ---------- */
+  @media (max-width:760px){
+    #top{padding:8px 10px;gap:7px}
+    #brand b{font-size:13px;letter-spacing:1px} #brand small{display:none}
+    .chip.hideS{display:none}
+    .btn{padding:9px 11px;font-size:13px;min-height:42px;display:flex;align-items:center}
+    .btn .bt{display:none}            /* 只留圖示，省空間 */
+    .btn .bi{font-size:16px}
+    #bAuto .bt{display:none}
+    #bottom{padding:9px 12px;gap:10px;font-size:10px}
+    #bottom .rd.opt{display:none} #hint{display:none}
+    .corner{width:20px;height:20px}
+    /* 面板：手機改為底部上滑、近全螢幕 */
+    .panel{width:100vw;max-width:100vw;height:88vh;top:auto;bottom:0;border-left:0;border-top:1px solid var(--line);
+       border-radius:18px 18px 0 0;transform:translateY(110%);box-shadow:0 -20px 60px rgba(0,0,0,.6)}
+    .panel.open{transform:translateY(0)}
+    #consolePanel{transform:translateY(110%)} #consolePanel.open{transform:translateY(0)}
+    .phead{padding:16px 18px} .phead h2{font-size:19px}
+    .phead .px{width:38px;height:38px;font-size:22px}
+    .pbody{padding:16px 18px 28px}
+    /* iOS 防止聚焦自動放大：輸入字級 ≥16px */
+    .field input,.field select,#gate input{font-size:16px;padding:11px 12px}
+    .dimrow input{font-size:16px;padding:9px 10px}
+    .grid6{grid-template-columns:1fr 1fr;gap:8px}
+    .bigbtn{padding:14px;font-size:14px}
+    .nlab .nm{font-size:12px} .nlab .sub{max-width:44vw;font-size:9px}
+    .axlab{font-size:11px} .axlab small{font-size:8px}
+    .modetabs .btn{min-height:40px}
+    .savedItem{padding:11px 10px;font-size:13px}
+    .savedItem .ed,.savedItem .rm{font-size:19px;padding:8px 9px}  /* 加大觸控 */
+  }
+  @media (max-width:760px) and (orientation:landscape){
+    .panel{height:96vh}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="space"></div>
+  <canvas id="scene"></canvas>
+  <div id="labels"></div>
+  <div id="fx"></div><div id="vig"></div>
+  <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+
+  <!-- TOP HUD -->
+  <div id="top">
+    <div id="brand"><b>主管人才評比系統</b><small>TALENT MATRIX · 3D</small></div>
+    <span class="chip lock hideS">◆ CONFIDENTIAL · CEO ONLY</span>
+    <span class="chip hideS" id="syncChip">☁ 雲端：未連結</span>
+    <div id="spacer"></div>
+    <button class="btn on" id="bAuto"><span class="bi">⟲</span><span class="bt"> 自動旋轉</span></button>
+    <button class="btn" id="bReset"><span class="bi">⟱</span><span class="bt"> 重置視角</span></button>
+    <button class="btn" id="bSync"><span class="bi">☁</span><span class="bt"> 同步</span></button>
+    <button class="btn" id="bConsole"><span class="bi">▤</span><span class="bt"> 控制台</span></button>
+    <button class="btn" id="bHelp"><span class="bi">?</span><span class="bt"> 說明</span></button>
+  </div>
+
+  <!-- BOTTOM READOUT -->
+  <div id="bottom">
+    <span class="rd opt">節點 <b>8</b> 型 · 角點 2³</span>
+    <span class="rd opt">縮放 <b id="rZoom">100%</b></span>
+    <span class="rd">受評 <b id="rCount">0</b></span>
+    <span class="rd" id="rClock">--:--:--</span>
+    <span id="hint"><kbd>拖曳</kbd> 旋轉 · <kbd>滾輪</kbd> 縮放 · <kbd>點節點</kbd> 下鑽 · <kbd>Esc</kbd> 關閉</span>
+  </div>
+
+  <!-- DRILL PANEL (right) -->
+  <aside class="panel" id="drill">
+    <div class="phead"><div class="tag" id="dTag">人才類型</div><h2 id="dTitle">—</h2><div class="px" id="dClose">✕</div></div>
+    <div class="pbody" id="dBody"></div>
+  </aside>
+
+  <!-- CEO CONSOLE (left) -->
+  <aside class="panel" id="consolePanel">
+    <div class="phead"><div class="tag">CEO 評核控制台</div><h2>公司評 · 立體定位</h2><div class="px" id="cpClose">✕</div></div>
+    <div class="pbody">
+      <div class="field"><label>受評主任 / 分校</label><input id="inName" placeholder="例：王主任（中山分校）"/></div>
+      <div class="field"><label>評核季度</label><input id="inQ" placeholder="例：2026 Q2"/></div>
+
+      <div class="modetabs">
+        <button class="btn on" id="mDetail">六維度評分</button>
+        <button class="btn" id="mQuick">三軸快速</button>
+      </div>
+
+      <!-- detail mode -->
+      <div id="paneDetail">
+        <div class="seg">公司評（1–10 分／維度）</div>
+        <div class="grid6" id="coGrid"></div>
+        <div class="seg">主任自評（選填，用於差異分析）</div>
+        <label class="muted" style="display:flex;gap:7px;align-items:center;margin-bottom:8px"><input type="checkbox" id="useSelf" style="width:auto"/> 一併輸入自評以計算落差 Δ</label>
+        <div class="grid6 hidden" id="seGrid"></div>
+      </div>
+
+      <!-- quick mode -->
+      <div id="paneQuick" class="hidden">
+        <div class="seg">直接輸入三軸分數（0–100）</div>
+        <div class="field dimrow"><label>業績力 <span class="w">經營績效 35%</span></label><input type="number" id="qBiz" min="0" max="100" value="70"/></div>
+        <div class="field dimrow"><label>領導力 <span class="w">領導+執行 45%</span></label><input type="number" id="qLdr" min="0" max="100" value="70"/></div>
+        <div class="field dimrow"><label>心態力 <span class="w">創業+關係+合規 20%</span></label><input type="number" id="qMind" min="0" max="100" value="70"/></div>
+      </div>
+
+      <button class="bigbtn" id="bCalc" style="margin-top:14px">⟢ 計算並掃描定位</button>
+      <div id="result"></div>
+
+      <div class="seg">已存檔受評主任</div>
+      <div class="saved" id="savedList"><div class="muted">尚無資料。送出後會自動存檔於此瀏覽器。</div></div>
+
+      <div class="seg">搬移資料（換檔案／上架／傳給其他CEO）</div>
+      <div style="display:flex;gap:8px">
+        <button class="bigbtn alt" id="bExport" style="margin-top:0">⤓ 匯出檔</button>
+        <button class="bigbtn alt" id="bImport" style="margin-top:0">⤒ 匯入檔</button>
+      </div>
+      <button class="bigbtn alt" id="bExportCSV" style="margin-top:8px">⤓ 匯出 CSV（貼進共用試算表）</button>
+      <input type="file" id="fileImport" accept=".json,application/json" style="display:none">
+      <p class="muted" style="margin-top:8px">在原本有資料的檔案按「匯出檔」存成 JSON → 到新／上架版本按「匯入檔」即可帶入。要讓其他 CEO 也看到，改用「匯出 CSV」貼進共用試算表。</p>
+
+      <button class="bigbtn alt" id="bClearAll" style="margin-top:14px">清空全部本機存檔</button>
+      <p class="muted" style="margin-top:12px">＊本機存檔（localStorage），僅此電腦／瀏覽器可見，符合「只給 CEO 看」。如需多人即時同步與線上問卷自動帶入，請見隨附的 Google 表單系統。</p>
+    </div>
+  </aside>
+
+  <!-- HELP -->
+  <aside class="panel" id="helpPanel" style="right:0">
+    <div class="phead"><div class="tag">使用說明</div><h2>如何操作</h2><div class="px" id="hpClose">✕</div></div>
+    <div class="pbody" id="helpBody"></div>
+  </aside>
+</div>
+
+<!-- BOOT -->
+<div id="boot"><div class="bt" id="bootTxt">INITIALIZING TALENT MATRIX…</div><div class="bar"><i id="bootBar"></i></div></div>
+
+<!-- GATE (已停用：直接進入，無密碼) -->
+<div id="gate" style="display:none">
+  <div class="ring"></div>
+  <h1>程優教育科技</h1>
+  <div class="sec">CEO ACCESS · 機密系統</div>
+  <input id="pass" type="password" placeholder="輸入存取碼" autocomplete="off"/>
+  <button class="btn gbtn" id="enter">進入系統 ⟶</button>
+  <div class="err" id="perr"></div>
+  <div class="tiny">主管人才雙軌評比 · 立體視覺化矩陣</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>window.THREE||document.write('<scr'+'ipt src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/scr'+'ipt>');</script>
+<script>
+/* ============================================================
+   程優教育科技 · 主管人才評比系統（CEO 機密）
+   三維度：X 業績力(35%) · Y 領導力(45%) · Z 心態力(20%)
+   8 型 = 2×2×2 高低配（取消「中」）
+   ============================================================ */
+
+/* ---- 0. 存取碼（已停用，保留變數）---- */
+const PASSCODE = "ceo2026";
+
+/* ---- 0b. 雲端共用資料來源 ----
+   把 Google 試算表「CEO評核台」用「檔案→共用→發布到網路→CSV」發布後，
+   將網址貼到下面這行引號內。設定並上架後，所有開啟此連結的 CEO
+   都會讀同一張表、看到同一份立體圖。留空＝僅本機模式。            */
+const SHEET_CSV_URL = ""; // 例：https://docs.google.com/spreadsheets/d/e/2PACX-XXXX/pub?gid=0&single=true&output=csv
+
+/* ---- 1. 維度與三軸定義 ---- */
+const DIMS = [
+  {k:"A", name:"經營績效", w:35, axis:"biz", items:["A1 新生招生達成率","A2 舊生留班率","A3 分校淨利潤達成","A4 招生行動量","A5 現金流管理"]},
+  {k:"B", name:"領導統御", w:25, axis:"ldr", items:["B1 日會執行品質","B2 員工向心力","B3 任務分配與追蹤","B4 衝突處理能力","B5 人才培育成效"]},
+  {k:"C", name:"執行力與紀律", w:20, axis:"ldr", items:["C1 出勤與工作紀律","C2 指令執行準時率","C3 報告與回報品質","C4 問題主動回報"]},
+  {k:"D", name:"創業心態", w:10, axis:"mind", items:["D1 主動提案與創新","D2 面對困難的態度","D3 主人翁意識"]},
+  {k:"E", name:"家長與學生關係", w:5, axis:"mind", items:["E1 家長滿意度","E2 學生口碑與介紹率"]},
+  {k:"F", name:"合規與公司文化", w:5, axis:"mind", items:["F1 遵守公司規定","F2 公司文化傳承"]},
+];
+const AXES = {
+  biz:{name:"業績力", en:"PERFORMANCE", color:"#ffb300", w:35, desc:"會不會賺錢：招生、留班、淨利、現金流", dims:["A"]},
+  ldr:{name:"領導力", en:"LEADERSHIP", color:"#36e0ff", w:45, desc:"帶不帶得動、做不做得到：團隊統御＋執行紀律", dims:["B","C"]},
+  mind:{name:"心態力", en:"MINDSET", color:"#ff5ecb", w:20, desc:"老闆心態與忠誠：創業心態、口碑、守規", dims:["D","E","F"]},
+};
+const THRESHOLD = 70; // 高/低分界（達標線）
+
+/* ---- 2. 8 型人才（每型專屬名稱＋小字備註）---- */
+// b/l/m = 業績/領導/心態 是否為「高」
+const NODES = [
+  {id:1, code:"①", name:"全能帥才", en:"ACE COMMANDER", b:1,l:1,m:1, color:"#ffd34d",
+   sub:"三高全能。可充分授權、利益共享，列為接班人。", ptype:"P1 明星將",
+   strat:"充分授權、利益共享、接班人培育、目標升級。", bonus:"≥90 分｜分紅 +5%（共 35%）"},
+  {id:2, code:"②", name:"傭兵悍將", en:"MERCENARY", b:1,l:1,m:0, color:"#ff5e5e",
+   sub:"能打能帶兵，但心態傭兵、忠誠存疑——最需『收心』。", ptype:"高戰力 · 風險型",
+   strat:"強化文化認同與利益綁定，防止被挖角或自立門戶；列入重點關注。", bonus:"達標維持 30%，但列管收心"},
+  {id:3, code:"③", name:"單兵王", en:"LONE ACE", b:1,l:0,m:1, color:"#36e0ff",
+   sub:"個人業績猛、心態正，但不會帶團隊，一人校撐全場。", ptype:"P3 拼命郎",
+   strat:"補領導與授權能力，導師制、小步帶人，突破個人天花板。", bonus:"達標維持 30%＋領導培訓"},
+  {id:4, code:"④", name:"績效孤星", en:"COLD STAR", b:1,l:0,m:0, color:"#2bd9c4",
+   sub:"只有業績，不帶人、心態冷，長期是團隊隱憂。", ptype:"績效 · 警示型",
+   strat:"明確要求帶人與守規，設定團隊型指標，觀察心態轉變。", bonus:"達標維持 30%，觀察期"},
+  {id:5, code:"⑤", name:"明日之星", en:"RISING STAR", b:0,l:1,m:1, color:"#54ff9f",
+   sub:"會帶人、心態好、肯拚，業績尚未爆發——最值得投資。", ptype:"P9 潛力股／P10 穩健將",
+   strat:"給方法、給時間、小步快跑；導師陪跑，下季目標升級。", bonus:"達標維持 30%＋輔導陪跑"},
+  {id:6, code:"⑥", name:"山頭老油條", en:"POLITICIAN", b:0,l:1,m:0, color:"#b07cff",
+   sub:"有手腕會帶人，但業績平、心態油、易結派——危險。", ptype:"P5 老油條",
+   strat:"目標綁定、績效掛鉤，防止山頭主義；重建文化認同。", bonus:"60–69｜分紅 −5%（25%）預警"},
+  {id:7, code:"⑦", name:"忠誠老黃牛", en:"LOYAL OX", b:0,l:0,m:1, color:"#4d8bff",
+   sub:"忠誠、守規、肯做，但業績與領導皆弱，有苦勞沒功勞。", ptype:"P11 忠誠兵",
+   strat:"激發動機、目標管理、專業深化，或轉任輔助／專業職。", bonus:"達標維持 30%／啟動輔導"},
+  {id:8, code:"⑧", name:"待轉型", en:"DEPLETER", b:0,l:0,m:0, color:"#8a93a6",
+   sub:"業績·領導·心態 全低。績效面談、限期改善(PIP)，無改善則調整或淘汰。", ptype:"P12 消耗者／P8 毒瘤星",
+   strat:"績效面談、PIP 三個月改善期，無改善則職務調整或淘汰。", bonus:"<60｜分紅 −10%（20%）＋PIP"},
+];
+
+/* ---- 3. 計分函式 ---- */
+function axisScores(dim){ // dim: {A..F} 各 0-10
+  const A=dim.A,B=dim.B,C=dim.C,D=dim.D,E=dim.E,F=dim.F;
+  const biz = A*10;
+  const ldr = (B*25 + C*20)/45*10;
+  const mind = (D*10 + E*5 + F*5)/20*10;
+  const total = (A*0.35+B*0.25+C*0.20+D*0.10+E*0.05+F*0.05)*10;
+  return {biz, ldr, mind, total};
+}
+function typeOf(biz,ldr,mind,t=THRESHOLD){
+  const b=biz>=t?1:0,l=ldr>=t?1:0,m=mind>=t?1:0;
+  return NODES.find(n=>n.b===b&&n.l===l&&n.m===m);
+}
+function bonusBand(total){
+  if(total>=90) return {t:"卓越 · +5%（共 35%）", c:"var(--good)"};
+  if(total>=80) return {t:"達標 · 維持 30%", c:"var(--good)"};
+  if(total>=70) return {t:"達標 · 維持 30%＋輔導", c:"var(--warn)"};
+  if(total>=60) return {t:"預警 · −5%（共 25%）", c:"var(--warn)"};
+  return {t:"嚴重 · −10%（20%）＋PIP", c:"var(--bad)"};
+}
+function diffClass(d){ // self - company (per 100 scale total)
+  if(Math.abs(d)<8) return {t:"認知一致", c:"var(--good)", note:"自我認知清晰，與外部觀察一致，持續強化。"};
+  if(d>=8) return {t:"自我高估（鄧寧-克魯格）", c:"var(--bad)", note:"自評高於公司評，可能高估自己，需直接具體的反饋。"};
+  return {t:"自我低估（冒牌者）", c:"var(--cyan)", note:"自評低於公司評，可能低估自己，需鼓勵與肯定、建立自信。"};
+}
+
+/* ============================================================
+   4. THREE.JS 場景
+   ============================================================ */
+let scene,camera,renderer,root,raycaster,mouse,W,H;
+let nodeObjs=[], subjectObjs=[], cloudObjs=[], cloudTimer=null, editingId=null, starField, gridGroup, scanRing;
+let labelEls=[], axisLabelEls=[];
+let autoRotate=true, dragging=false, lastX=0,lastY=0, vX=0,vY=0;
+let camDist=9.2, CUBE=3, NODE_R=0.24, clock;
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+
+function makeGlow(){ // radial soft glow texture
+  const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
+  const gr=g.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.25,'rgba(255,255,255,.85)');
+  gr.addColorStop(.55,'rgba(255,255,255,.25)');gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr;g.fillRect(0,0,128,128);return new THREE.CanvasTexture(c);
+}
+const GLOW=null;
+function initThree(){
+  const cv=$('#scene');
+  renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  scene=new THREE.Scene();
+  scene.fog=new THREE.FogExp2(0x05070f,0.055);
+  camera=new THREE.PerspectiveCamera(52,1,0.1,200);
+  root=new THREE.Group(); scene.add(root);
+  raycaster=new THREE.Raycaster(); mouse=new THREE.Vector2(-2,-2);
+  clock=new THREE.Clock();
+  window._glow=makeGlow();
+
+  buildStars(); buildGrid(); buildCube(); buildAxes(); buildNodes();
+  resize(); window.addEventListener('resize',resize);
+  bindControls();
+  animate();
+}
+
+/* starfield backdrop */
+function buildStars(){
+  const N=1400, g=new THREE.BufferGeometry(), pos=new Float32Array(N*3), col=new Float32Array(N*3);
+  const pal=[[.4,.7,1],[1,.6,.9],[.7,.9,1],[1,.85,.5]];
+  for(let i=0;i<N;i++){
+    const r=26+Math.random()*60, th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
+    pos[i*3]=r*Math.sin(ph)*Math.cos(th); pos[i*3+1]=r*Math.cos(ph); pos[i*3+2]=r*Math.sin(ph)*Math.sin(th);
+    const c=pal[(Math.random()*pal.length)|0]; col[i*3]=c[0];col[i*3+1]=c[1];col[i*3+2]=c[2];
+  }
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const m=new THREE.PointsMaterial({size:.5,map:window._glow,vertexColors:true,transparent:true,
+     opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending});
+  starField=new THREE.Points(g,m); scene.add(starField);
+}
+
+/* holographic polar grid under cube */
+function buildGrid(){
+  gridGroup=new THREE.Group();
+  const mat=new THREE.LineBasicMaterial({color:0x2b6ea8,transparent:true,opacity:.32,blending:THREE.AdditiveBlending});
+  const rings=6, segs=72;
+  for(let r=1;r<=rings;r++){
+    const pts=[],rad=r*1.4;
+    for(let s=0;s<=segs;s++){const a=s/segs*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(a)*rad,0,Math.sin(a)*rad));}
+    gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),mat));
+  }
+  for(let s=0;s<24;s++){const a=s/24*Math.PI*2;
+    gridGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+      [new THREE.Vector3(0,0,0),new THREE.Vector3(Math.cos(a)*rings*1.4,0,Math.sin(a)*rings*1.4)]),mat));}
+  gridGroup.position.y=-CUBE-1.2; root.add(gridGroup);
+}
+
+/* glowing wireframe cube + faint energy faces */
+function buildCube(){
+  const geo=new THREE.BoxGeometry(CUBE*2,CUBE*2,CUBE*2);
+  const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+     new THREE.LineBasicMaterial({color:0x4fd2ff,transparent:true,opacity:.55,blending:THREE.AdditiveBlending}));
+  root.add(edges);
+  const faces=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:0x1a4a78,transparent:true,opacity:.05,
+     side:THREE.BackSide,blending:THREE.AdditiveBlending,depthWrite:false}));
+  root.add(faces);
+  // corner ticks
+  const cg=new THREE.SphereGeometry(.03,8,8), cm=new THREE.MeshBasicMaterial({color:0x9fe6ff});
+  [-1,1].forEach(x=>[-1,1].forEach(y=>[-1,1].forEach(z=>{
+    const s=new THREE.Mesh(cg,cm); s.position.set(x*CUBE,y*CUBE,z*CUBE); root.add(s);
+  })));
+}
+
+/* three neon axes with arrows + HTML labels */
+function buildAxes(){
+  const L=CUBE*1.55;
+  const defs=[
+    {a:'biz', dir:new THREE.Vector3(1,0,0), color:0xffb300},
+    {a:'ldr', dir:new THREE.Vector3(0,1,0), color:0x36e0ff},
+    {a:'mind',dir:new THREE.Vector3(0,0,1), color:0xff5ecb},
+  ];
+  defs.forEach(d=>{
+    const mat=new THREE.LineBasicMaterial({color:d.color,transparent:true,opacity:.8,blending:THREE.AdditiveBlending});
+    const p1=d.dir.clone().multiplyScalar(-L), p2=d.dir.clone().multiplyScalar(L);
+    root.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([p1,p2]),mat));
+    // arrow
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(.12,.4,16),
+       new THREE.MeshBasicMaterial({color:d.color}));
+    cone.position.copy(p2);
+    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.dir);
+    root.add(cone);
+    // glow sprite at tip
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:window._glow,color:d.color,transparent:true,
+       opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false}));
+    sp.scale.set(1.2,1.2,1); sp.position.copy(p2); root.add(sp);
+    // HTML label at +end and polarity at -end
+    const ax=AXES[d.a];
+    const lab=document.createElement('div'); lab.className='axlab';
+    lab.style.color='#'+d.color.toString(16).padStart(6,'0');
+    lab.innerHTML=`${ax.name} ▲ 高<small>${ax.en} · ${ax.w}%</small>`;
+    $('#labels').appendChild(lab); axisLabelEls.push({el:lab, pos:d.dir.clone().multiplyScalar(L+0.55)});
+    const lo=document.createElement('div'); lo.className='axlab'; lo.style.color='#5b6b8c';
+    lo.innerHTML=`低 ▽<small>${ax.name}</small>`;
+    $('#labels').appendChild(lo); axisLabelEls.push({el:lo, pos:d.dir.clone().multiplyScalar(-L-0.4)});
+  });
+}
+
+/* 8 corner nodes */
+function buildNodes(){
+  NODES.forEach(n=>{
+    const grp=new THREE.Group();
+    const x=(n.b?1:-1)*CUBE, y=(n.l?1:-1)*CUBE, z=(n.m?1:-1)*CUBE;
+    grp.position.set(x,y,z);
+    const col=new THREE.Color(n.color);
+    // core
+    const core=new THREE.Mesh(new THREE.IcosahedronGeometry(NODE_R,1),
+       new THREE.MeshBasicMaterial({color:col}));
+    grp.add(core);
+    // wire shell
+    const wire=new THREE.Mesh(new THREE.IcosahedronGeometry(NODE_R*1.5,1),
+       new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:.5,blending:THREE.AdditiveBlending}));
+    grp.add(wire);
+    // halo
+    const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:window._glow,color:col,transparent:true,
+       opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false}));
+    halo.scale.set(1.7,1.7,1); grp.add(halo);
+    // ring
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(NODE_R*2.1,.012,8,40),
+       new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.7,blending:THREE.AdditiveBlending}));
+    ring.rotation.x=Math.PI/2.3; grp.add(ring);
+    // hit sphere (bigger, invisible)
+    const hit=new THREE.Mesh(new THREE.SphereGeometry(NODE_R*2.4,12,12),
+       new THREE.MeshBasicMaterial({visible:false}));
+    hit.userData.node=n; grp.add(hit);
+    root.add(grp);
+    nodeObjs.push({n,grp,core,wire,halo,ring,hit,base:NODE_R, pos:new THREE.Vector3(x,y,z)});
+
+    // HTML label
+    const el=document.createElement('div'); el.className='nlab'; el.style.setProperty('--c',n.color);
+    el.innerHTML=`<div class="nm"><span class="code">${n.id}</span>${n.name}</div><div class="sub">${n.sub}</div>`;
+    el.addEventListener('click',()=>openType(n));
+    el.addEventListener('mouseenter',()=>setHot(n.id,true));
+    el.addEventListener('mouseleave',()=>setHot(n.id,false));
+    $('#labels').appendChild(el); labelEls.push({n,el,obj:nodeObjs[nodeObjs.length-1]});
+  });
+}
+
+/* project 3D->screen for labels */
+function updateLabels(){
+  const v=new THREE.Vector3();
+  labelEls.forEach(L=>{
+    L.obj.grp.getWorldPosition(v); v.project(camera);
+    const behind=v.z>1;
+    const x=(v.x*.5+.5)*W, y=(-v.y*.5+.5)*H;
+    L.el.style.opacity=behind?0:Math.max(.25,1-(v.z*1.3));
+    L.el.style.left=x+'px'; L.el.style.top=y+'px';
+  });
+  axisLabelEls.forEach(A=>{
+    v.copy(A.pos); root.localToWorld(v); v.project(camera);
+    const x=(v.x*.5+.5)*W, y=(-v.y*.5+.5)*H;
+    A.el.style.opacity=v.z>1?0:.92; A.el.style.left=x+'px'; A.el.style.top=y+'px';
+  });
+  // subjects (local + cloud)
+  subjectObjs.concat(cloudObjs).forEach(S=>{
+    (S.obj||S.grp).getWorldPosition(v); v.project(camera);
+    const x=(v.x*.5+.5)*W, y=(-v.y*.5+.5)*H;
+    S.el.style.opacity=v.z>1?0:1; S.el.style.left=x+'px'; S.el.style.top=y+'px';
+  });
+}
+
+function setHot(id,on){
+  const o=nodeObjs.find(o=>o.n.id===id); if(!o)return;
+  o._hot=on; const L=labelEls.find(l=>l.n.id===id); if(L)L.el.classList.toggle('hot',on);
+  document.body.style.cursor=on?'pointer':'default';
+}
+
+/* ---- controls ---- */
+let downX=0,downY=0;
+function bindControls(){
+  const cv=$('#scene');
+  cv.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;downX=e.clientX;downY=e.clientY;cv.setPointerCapture(e.pointerId);});
+  cv.addEventListener('pointermove',e=>{
+    mouse.x=(e.clientX/W)*2-1; mouse.y=-(e.clientY/H)*2+1;
+    if(dragging){
+      const dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX;lastY=e.clientY;
+      vX=dy*0.005; vY=dx*0.005; applyRot(vX,vY); autoRotate=false; $('#bAuto').classList.remove('on');
+    } else hoverTest();
+  });
+  cv.addEventListener('pointerup',e=>{
+    dragging=false;
+    if(Math.abs(e.clientX-downX)<4&&Math.abs(e.clientY-downY)<4) clickTest();
+  });
+  cv.addEventListener('wheel',e=>{e.preventDefault();camDist*=(1+Math.sign(e.deltaY)*0.08);camDist=Math.max(4.5,Math.min(20,camDist));},{passive:false});
+  // touch pinch
+  let pinch=0;
+  cv.addEventListener('touchmove',e=>{ if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY); if(pinch)camDist*=pinch/d; pinch=d; camDist=Math.max(4.5,Math.min(20,camDist)); e.preventDefault();}},{passive:false});
+  cv.addEventListener('touchend',()=>pinch=0);
+  window.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){closeAll();}
+    else if(e.key==='ArrowLeft')applyRot(0,-0.07);
+    else if(e.key==='ArrowRight')applyRot(0,0.07);
+    else if(e.key==='ArrowUp')applyRot(-0.07,0);
+    else if(e.key==='ArrowDown')applyRot(0.07,0);
+    else if(e.key==='+'||e.key==='=')camDist=Math.max(4.5,camDist*0.92);
+    else if(e.key==='-')camDist=Math.min(20,camDist*1.08);
+    else if(e.key===' '){toggleAuto();e.preventDefault();}
+  });
+  $('#bAuto').onclick=toggleAuto;
+  $('#bReset').onclick=resetView;
+  $('#bConsole').onclick=()=>togglePanel('#consolePanel');
+  $('#bSync').onclick=()=>syncCloud(true);
+  $('#bHelp').onclick=()=>{renderHelp();togglePanel('#helpPanel');};
+  $('#bExport').onclick=exportJSON;
+  $('#bExportCSV').onclick=exportSheetCSV;
+  $('#bImport').onclick=()=>$('#fileImport').click();
+  $('#fileImport').onchange=e=>{ if(e.target.files[0]) importJSON(e.target.files[0]); e.target.value=''; };
+  $('#dClose').onclick=()=>$('#drill').classList.remove('open');
+  $('#cpClose').onclick=()=>$('#consolePanel').classList.remove('open');
+  $('#hpClose').onclick=()=>$('#helpPanel').classList.remove('open');
+}
+function applyRot(rx,ry){
+  const q=new THREE.Quaternion().setFromEuler(new THREE.Euler(rx,ry,0,'XYZ'));
+  root.quaternion.premultiply(q);
+}
+function toggleAuto(){autoRotate=!autoRotate;$('#bAuto').classList.toggle('on',autoRotate);}
+function resetView(){
+  camDist=9.2; const target=new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.35,0.7,0));
+  let t=0; (function ease(){t+=0.05; root.quaternion.slerp(target,0.12); if(t<1)requestAnimationFrame(ease);})();
+  autoRotate=true;$('#bAuto').classList.add('on');
+}
+function closeAll(){$$('.panel').forEach(p=>p.classList.remove('open'));}
+function togglePanel(sel){const p=$(sel);const was=p.classList.contains('open');closeAll();if(!was)p.classList.add('open');}
+
+function hoverTest(){
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(nodeObjs.map(o=>o.hit));
+  nodeObjs.forEach(o=>{if(o._hot&&!(hits[0]&&hits[0].object===o.hit))setHot(o.n.id,false);});
+  if(hits[0]) setHot(hits[0].object.userData.node.id,true);
+}
+function clickTest(){
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(nodeObjs.map(o=>o.hit));
+  if(hits[0]) openType(hits[0].object.userData.node);
+}
+
+/* ---- animate ---- */
+function animate(){
+  requestAnimationFrame(animate);
+  const t=clock.getElapsedTime();
+  if(autoRotate&&!dragging) applyRot(0, 0.0022);
+  // node pulse
+  nodeObjs.forEach((o,i)=>{
+    const p=1+Math.sin(t*2+i)*0.06 + (o._hot?0.25:0);
+    o.core.scale.setScalar(p); o.halo.scale.setScalar((o._hot?2.3:1.7)*p);
+    o.ring.rotation.z+= o._hot?0.05:0.012; o.wire.rotation.y+=0.01;
+    o.halo.material.opacity=o._hot?1:0.8;
+  });
+  subjectObjs.forEach((s,i)=>{s.ring.rotation.z+=0.03; s.core.scale.setScalar(1+Math.sin(t*3+i)*0.12);});
+  cloudObjs.forEach((s,i)=>{s.ring.rotation.z+=0.02; s.core.scale.setScalar(1+Math.sin(t*2.5+i)*0.1);});
+  if(starField) starField.rotation.y=t*0.01;
+  // camera
+  const dir=new THREE.Vector3(0,0,1).applyQuaternion(camera.quaternion);
+  camera.position.set(0,0,camDist); camera.lookAt(0,0,0);
+  $('#rZoom').textContent=Math.round(9.2/camDist*100)+'%';
+  updateLabels();
+  renderer.render(scene,camera);
+}
+function resize(){
+  W=innerWidth;H=innerHeight; renderer.setSize(W,H);
+  camera.aspect=W/H;camera.updateProjectionMatrix();
+}
+
+/* ============================================================
+   5. 下鑽面板（2 層）
+   ============================================================ */
+function axisTag(isHigh){return isHigh?'<span class="hi">高</span>':'<span class="lo">低</span>';}
+function openType(n){
+  const p=$('#drill'); closeAll(); p.classList.add('open');
+  $('#dTag').textContent='人才類型 · '+n.en;
+  $('#dTitle').innerHTML=`<span style="color:${n.color}">${n.id}</span> ${n.name}`;
+  $('#dBody').innerHTML=`
+    <div class="coord">
+      <span class="${n.b?'hi':'lo'}">業績力 ${n.b?'高':'低'}</span>
+      <span class="${n.l?'hi':'lo'}">領導力 ${n.l?'高':'低'}</span>
+      <span class="${n.m?'hi':'lo'}">心態力 ${n.m?'高':'低'}</span>
+    </div>
+    <div class="kv"><div class="k">一句話定義</div><div class="v">${n.sub}</div></div>
+    <div class="kv"><div class="k">對應 12 型</div><div class="v"><span class="pill" style="border-color:${n.color};color:${n.color}">${n.ptype}</span></div></div>
+    <div class="kv"><div class="k">管理策略</div><div class="v">${n.strat}</div></div>
+    <div class="kv"><div class="k">分紅級距</div><div class="v">${n.bonus}</div></div>
+    <button class="bigbtn" id="toL2">展開評核細項（第 2 層）▸</button>
+    <button class="bigbtn alt" id="plotMatch" style="margin-top:10px">在立體圖標示此型受評主任</button>
+  `;
+  $('#toL2').onclick=()=>openIndicators(n);
+  $('#plotMatch').onclick=()=>{highlightSubjectsOfType(n);};
+  // focus camera toward node
+  focusNode(n);
+}
+function openIndicators(n){
+  $('#dTag').textContent='評核細項 · 第 2 層';
+  const flags={biz:n.b,ldr:n.l,mind:n.m};
+  let html=`<p class="muted" style="margin:0 0 10px">${n.id} ${n.name}　在三軸的構成指標與評核依據（資料來源：雙軌評比制度六大維度 A–F）。</p>`;
+  ['biz','ldr','mind'].forEach(ak=>{
+    const ax=AXES[ak]; const hi=flags[ak];
+    html+=`<div class="axblock" style="border-color:${ax.color}55">
+      <h4 style="color:${ax.color}">${ax.name} ${axisTag(hi)} <span class="wt">　${ax.en} · 權重 ${ax.w}%</span></h4>
+      <div class="wt">${ax.desc}</div><ul>`;
+    DIMS.filter(d=>ax.dims.includes(d.k)).forEach(d=>{
+      html+=`<li><b>${d.k}. ${d.name}</b>（${d.w}%）<span class="src">${d.items.join('　·　')}</span></li>`;
+    });
+    html+=`</ul></div>`;
+  });
+  html+=`<div class="kv"><div class="k">此型重點</div><div class="v">${n.strat}</div></div>
+    <button class="bigbtn alt" id="backL1">◂ 返回類型總覽（第 1 層）</button>`;
+  $('#dBody').innerHTML=html;
+  $('#backL1').onclick=()=>openType(n);
+}
+function focusNode(n){
+  // rotate root so the node faces camera-ish
+  const target=new THREE.Vector3((n.b?1:-1),(n.l?1:-1),(n.m?1:-1)).normalize();
+  const camDir=new THREE.Vector3(0,0,1);
+  const q=new THREE.Quaternion().setFromUnitVectors(target.clone().applyQuaternion(root.quaternion).normalize(),camDir);
+  const goal=q.multiply(root.quaternion);
+  let t=0;(function e(){t+=0.06;root.quaternion.slerp(goal,0.15);if(t<1)requestAnimationFrame(e);})();
+  autoRotate=false;$('#bAuto').classList.remove('on');
+}
+
+/* ============================================================
+   6. CEO 評核控制台
+   ============================================================ */
+const LS_KEY='chengyou_talent_subjects_v1';
+function buildConsoleInputs(){
+  const co=$('#coGrid'), se=$('#seGrid');
+  DIMS.forEach(d=>{
+    co.insertAdjacentHTML('beforeend',
+      `<div class="field dimrow"><label>${d.k} ${d.name} <span class="w">${d.w}%</span></label>
+       <input type="number" min="1" max="10" step="0.5" value="7" data-co="${d.k}"></div>`);
+    se.insertAdjacentHTML('beforeend',
+      `<div class="field dimrow"><label>${d.k} ${d.name} <span class="w">自評</span></label>
+       <input type="number" min="1" max="10" step="0.5" value="7" data-se="${d.k}"></div>`);
+  });
+}
+let mode='detail';
+function readDetail(sel){const o={};$$(`[data-${sel}]`).forEach(i=>o[i.dataset[sel]]=parseFloat(i.value)||0);return o;}
+function calc(){
+  let co,total,axes,self=null;
+  if(mode==='detail'){
+    co=readDetail('co'); axes=axisScores(co); total=axes.total;
+    if($('#useSelf').checked){const sd=readDetail('se');self=axisScores(sd);}
+  }else{
+    const biz=clamp(+$('#qBiz').value),ldr=clamp(+$('#qLdr').value),mind=clamp(+$('#qMind').value);
+    axes={biz,ldr,mind,total:biz*0.35+ldr*0.45+mind*0.20}; total=axes.total;
+  }
+  const ty=typeOf(axes.biz,axes.ldr,axes.mind), band=bonusBand(total);
+  let diffHtml='';
+  if(self){
+    const d=total-self.total, dc=diffClass(self.total-total);
+    diffHtml=`<div class="verdict" style="border-color:${dc.c}">
+      <div class="t" style="font-size:14px;color:${dc.c}">差異分析 Δ＝${(self.total-total>=0?'+':'')}${(self.total-total).toFixed(1)}</div>
+      <div class="d">${dc.note}<br>自評總分 ${self.total.toFixed(1)}　公司評總分 ${total.toFixed(1)}</div>
+      <div class="d" style="margin-top:6px">
+        Δ業績 ${(self.biz-axes.biz>=0?'+':'')}${(self.biz-axes.biz).toFixed(0)}
+        Δ領導 ${(self.ldr-axes.ldr>=0?'+':'')}${(self.ldr-axes.ldr).toFixed(0)}
+        Δ心態 ${(self.mind-axes.mind>=0?'+':'')}${(self.mind-axes.mind).toFixed(0)}</div></div>`;
+  }
+  $('#result').innerHTML=`
+    ${bar('業績力',axes.biz,'#ffb300')}${bar('領導力',axes.ldr,'#36e0ff')}${bar('心態力',axes.mind,'#ff5ecb')}
+    <div class="resrow"><span>加權總分</span><b style="color:${band.c}">${total.toFixed(1)} / 100</b></div>
+    <div class="verdict" style="border-color:${ty.color}">
+      <div class="t" style="color:${ty.color}">${ty.id} ${ty.name}</div>
+      <div class="d">${ty.sub}</div>
+      <div class="d" style="margin-top:6px;color:${band.c}">分紅級距：${band.t}</div>
+      <div class="d">建議：${ty.strat}</div>
+    </div>${diffHtml}
+    <button class="bigbtn" id="bAdd" style="margin-top:12px">${editingId?'✓ 更新此主任':'＋ 加入立體圖並存檔'}</button>
+    ${editingId?'<button class="bigbtn alt" id="bCancelEdit" style="margin-top:8px">取消編輯</button>':''}`;
+  const snap=captureInputs();
+  $('#bAdd').onclick=()=>addOrUpdateSubject({name:$('#inName').value||('受評 '+(loadSubjects().length+1)),q:$('#inQ').value,axes,total,typeId:ty.id,color:ty.color,input:snap});
+  const ce=$('#bCancelEdit'); if(ce) ce.onclick=()=>{editingId=null;calc();};
+  return {axes,total,ty};
+}
+function captureInputs(){
+  if(mode==='detail'){ const co=readDetail('co'); const se=$('#useSelf').checked?readDetail('se'):null; return {mode:'detail',co,se}; }
+  return {mode:'quick',quick:{biz:clamp(+$('#qBiz').value),ldr:clamp(+$('#qLdr').value),mind:clamp(+$('#qMind').value)}};
+}
+function setMode(m){ mode=m;
+  $('#mDetail').classList.toggle('on',m==='detail'); $('#mQuick').classList.toggle('on',m==='quick');
+  $('#paneDetail').classList.toggle('hidden',m!=='detail'); $('#paneQuick').classList.toggle('hidden',m!=='quick');
+}
+function addOrUpdateSubject(s){
+  const list=loadSubjects();
+  if(editingId){
+    s.id=editingId; const i=list.findIndex(x=>x.id===editingId);
+    (i>=0)?list[i]=s:list.push(s); saveSubjects(list);
+    const oi=subjectObjs.findIndex(o=>o.id===editingId);
+    if(oi>=0){root.remove(subjectObjs[oi].grp);subjectObjs[oi].el.remove();subjectObjs.splice(oi,1);}
+    editingId=null;
+  } else { s.id='s'+Date.now(); list.push(s); saveSubjects(list); }
+  placeOrb(s); renderSaved(); $('#rCount').textContent=subjectsTotal();
+  $('#result').innerHTML='<div class="muted" style="margin-top:12px;color:var(--good)">✓ 已存檔並更新立體圖。</div>';
+}
+function editSubject(id){
+  const s=loadSubjects().find(x=>x.id===id); if(!s)return;
+  editingId=id;
+  $('#consolePanel').classList.add('open'); $('#drill').classList.remove('open');
+  $('#inName').value=s.name||''; $('#inQ').value=s.q||'';
+  const inp=s.input||{mode:'quick',quick:{biz:s.axes.biz,ldr:s.axes.ldr,mind:s.axes.mind}};
+  if(inp.mode==='detail'){
+    setMode('detail');
+    DIMS.forEach(d=>{const el=document.querySelector('[data-co="'+d.k+'"]'); if(el&&inp.co)el.value=inp.co[d.k];});
+    $('#useSelf').checked=!!inp.se; $('#seGrid').classList.toggle('hidden',!inp.se);
+    if(inp.se) DIMS.forEach(d=>{const el=document.querySelector('[data-se="'+d.k+'"]'); if(el)el.value=inp.se[d.k];});
+  } else {
+    setMode('quick');
+    $('#qBiz').value=inp.quick.biz; $('#qLdr').value=inp.quick.ldr; $('#qMind').value=inp.quick.mind;
+  }
+  calc(); $('#consolePanel .pbody').scrollTop=0;
+}
+function clamp(v){return Math.max(0,Math.min(100,isNaN(v)?0:v));}
+function r1(x){return Math.round(x*10)/10;}
+
+/* ===== 資料匯出／匯入：把既有本機資料搬到共用/上架版本或試算表 ===== */
+function downloadFile(text,name,type){
+  const blob=new Blob([text],{type:type||'text/plain;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},600);
+}
+function exportJSON(){
+  const subs=loadSubjects(); if(!subs.length){alert('目前沒有本機資料可匯出。');return;}
+  downloadFile(JSON.stringify({app:'chengyou-talent',version:1,exportedAt:new Date().toISOString(),subjects:subs},null,2),
+    '評比資料_匯出.json','application/json');
+}
+function importJSON(file){
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+    const d=JSON.parse(rd.result); const incoming=Array.isArray(d)?d:(d.subjects||[]);
+    if(!incoming.length){alert('檔案中沒有可匯入的資料。');return;}
+    const cur=loadSubjects(), byKey={}; cur.forEach(s=>byKey[(s.name||'')+'|'+(s.q||'')]=s);
+    let add=0,upd=0;
+    incoming.forEach(s=>{ if(!s.id)s.id='s'+Date.now()+Math.random().toString(36).slice(2,6);
+      const k=(s.name||'')+'|'+(s.q||'');
+      if(byKey[k]){Object.assign(byKey[k],s,{id:byKey[k].id});upd++;} else {cur.push(s);byKey[k]=s;add++;} });
+    saveSubjects(cur);
+    subjectObjs.forEach(o=>{root.remove(o.grp);o.el.remove();}); subjectObjs=[];
+    loadSubjects().forEach(s=>placeOrb(s));
+    renderSaved(); $('#rCount').textContent=subjectsTotal();
+    alert('匯入完成：新增 '+add+' 筆、更新 '+upd+' 筆。');
+  }catch(e){ alert('匯入失敗：請確認是本系統匯出的 JSON 檔。'); } };
+  rd.readAsText(file);
+}
+function exportSheetCSV(){
+  const subs=loadSubjects(); if(!subs.length){alert('目前沒有本機資料可匯出。');return;}
+  const head=['時間','主任','分校','季度','自評·業績','自評·領導','自評·心態','自評總分','公司評·業績','公司評·領導','公司評·心態','公司評總分','Δ業績','Δ領導','Δ心態','Δ總分','8型定位','分紅級距','差異警示'];
+  const rows=[head];
+  subs.forEach(s=>{
+    const co=s.axes||{biz:0,ldr:0,mind:0}, coT=s.total||0;
+    let se=null; if(s.input&&s.input.se) se=axisScores(s.input.se);
+    const ty=typeOf(co.biz,co.ldr,co.mind), band=bonusBand(coT);
+    const dT = se?(se.total-coT):'';
+    const warn = se?(Math.abs(se.total-coT)>=15?(se.total-coT>0?'⚠ 自我高估':'⚠ 自我低估'):(Math.abs(se.total-coT)>=8?'留意差異':'認知一致')):'';
+    rows.push([ new Date().toLocaleString('zh-TW'), s.name||'', '', s.q||'',
+      se?r1(se.biz):'', se?r1(se.ldr):'', se?r1(se.mind):'', se?r1(se.total):'',
+      r1(co.biz), r1(co.ldr), r1(co.mind), r1(coT),
+      se?r1(se.biz-co.biz):'', se?r1(se.ldr-co.ldr):'', se?r1(se.mind-co.mind):'', se?r1(dT):'',
+      ty.id+' '+ty.name, band.t, warn ]);
+  });
+  const csv=rows.map(r=>r.map(c=>{c=(c==null?'':String(c)); return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\n');
+  downloadFile('﻿'+csv,'評比資料_貼進試算表.csv','text/csv;charset=utf-8');
+}
+function bar(name,v,c){return `<div class="resrow" style="margin-top:10px"><span>${name}</span><b>${v.toFixed(0)}</b></div>
+  <div class="scorebar"><i style="width:${v}%;background:${c};box-shadow:0 0 10px ${c}"></i></div>`;}
+
+/* place a subject orb in the cube */
+function placeOrb(s){
+  const x=(s.axes.biz/100*2-1)*CUBE, y=(s.axes.ldr/100*2-1)*CUBE, z=(s.axes.mind/100*2-1)*CUBE;
+  const grp=new THREE.Group(); grp.position.set(x,y,z);
+  const col=new THREE.Color(s.color);
+  const core=new THREE.Mesh(new THREE.SphereGeometry(.14,16,16),new THREE.MeshBasicMaterial({color:0xffffff}));
+  grp.add(core);
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:window._glow,color:col,transparent:true,opacity:.95,blending:THREE.AdditiveBlending,depthWrite:false}));
+  halo.scale.set(1.5,1.5,1);grp.add(halo);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.28,.015,8,40),new THREE.MeshBasicMaterial({color:col,blending:THREE.AdditiveBlending,transparent:true}));
+  grp.add(ring);
+  // drop lines to floor & origin planes
+  const lm=new THREE.LineDashedMaterial({color:col,transparent:true,opacity:.4,dashSize:.15,gapSize:.1});
+  const dl=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(0,-(y+CUBE),0)]),lm);dl.computeLineDistances();grp.add(dl);
+  root.add(grp);
+  // label
+  const el=document.createElement('div');el.className='nlab';el.style.setProperty('--c',s.color);
+  el.innerHTML=`<div class="nm" style="font-size:11.5px"><span class="code">主</span>${s.name}</div>
+    <div class="sub">${s.q||''}　總分 ${s.total.toFixed(0)}</div>`;
+  $('#labels').appendChild(el);
+  const obj={el,grp,obj:grp,core,ring,id:s.id};
+  subjectObjs.push(obj);
+  // scan ping
+  ping(grp.position.clone(),col);
+  return obj;
+}
+function ping(pos,col){
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.3,.02,8,40),new THREE.MeshBasicMaterial({color:col,transparent:true,blending:THREE.AdditiveBlending}));
+  ring.position.copy(pos);ring.lookAt(camera.position);root.add(ring);
+  let s=0;(function e(){s+=0.06;ring.scale.setScalar(1+s*6);ring.material.opacity=Math.max(0,.8-s);if(s<1)requestAnimationFrame(e);else root.remove(ring);})();
+}
+function loadSubjects(){try{return JSON.parse(localStorage.getItem(LS_KEY)||'[]');}catch(e){return [];}}
+function saveSubjects(l){localStorage.setItem(LS_KEY,JSON.stringify(l));}
+function renderSaved(){
+  const list=loadSubjects(), box=$('#savedList');
+  if(!list.length){box.innerHTML='<div class="muted">尚無資料。送出後會自動存檔於此瀏覽器。</div>';return;}
+  box.innerHTML=list.map(s=>{const ty=NODES.find(n=>n.id===s.typeId)||{};
+    return `<div class="savedItem" data-id="${s.id}"><span class="dot" style="background:${s.color};box-shadow:0 0 8px ${s.color}"></span>
+      <span class="si-main"><b>${s.name}</b><br><span class="muted">${s.q||''}　${ty.id||''} ${ty.name||''}　${s.total.toFixed(0)}分</span></span>
+      <span class="ed" data-ed="${s.id}" title="編輯公司評">✎</span>
+      <span class="rm" data-rm="${s.id}" title="刪除">✕</span></div>`;}).join('');
+  $$('#savedList .savedItem').forEach(it=>it.onclick=e=>{
+    if(e.target.dataset.rm||e.target.dataset.ed)return; flyToSubject(it.dataset.id);
+  });
+  $$('#savedList .ed').forEach(r=>r.onclick=e=>{e.stopPropagation();editSubject(r.dataset.ed);});
+  $$('#savedList .rm').forEach(r=>r.onclick=e=>{e.stopPropagation();removeSubject(r.dataset.rm);});
+}
+function removeSubject(id){
+  if(editingId===id)editingId=null;
+  saveSubjects(loadSubjects().filter(s=>s.id!==id));
+  const i=subjectObjs.findIndex(o=>o.id===id);
+  if(i>=0){root.remove(subjectObjs[i].grp);subjectObjs[i].el.remove();subjectObjs.splice(i,1);}
+  renderSaved(); $('#rCount').textContent=subjectsTotal();
+}
+function flyToSubject(id){
+  const o=subjectObjs.find(o=>o.id===id);if(!o)return;
+  const target=o.grp.position.clone().normalize(), camDir=new THREE.Vector3(0,0,1);
+  const q=new THREE.Quaternion().setFromUnitVectors(target.clone().applyQuaternion(root.quaternion).normalize(),camDir);
+  const goal=q.multiply(root.quaternion);let t=0;
+  (function e(){t+=0.06;root.quaternion.slerp(goal,0.15);if(t<1)requestAnimationFrame(e);})();
+  autoRotate=false;$('#bAuto').classList.remove('on');ping(o.grp.position.clone(),new THREE.Color(0x36e0ff));
+}
+function highlightSubjectsOfType(n){
+  const list=loadSubjects().filter(s=>s.typeId===n.id);
+  $('#drill').classList.remove('open'); togglePanel('#consolePanel');
+  if(!list.length){alert(`目前沒有被評為「${n.id} ${n.name}」的受評主任。`);return;}
+  list.forEach(s=>ping(subjectObjs.find(o=>o.id===s.id)?.grp.position.clone()||new THREE.Vector3(),new THREE.Color(n.color)));
+}
+
+/* ===== 雲端共用同步：讀取 Google 試算表「CEO評核台」CSV，全體看同一份 ===== */
+function effectiveCsvUrl(){ return (SHEET_CSV_URL&&SHEET_CSV_URL.trim()) || localStorage.getItem('chengyou_csv') || ''; }
+function setSync(t){ const c=$('#syncChip'); if(c) c.textContent='☁ 雲端：'+t; }
+function subjectsTotal(){ return subjectObjs.length+cloudObjs.length; }
+function parseCSV(text){ const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else { if(c==='"')q=true; else if(c===','){row.push(cur);cur='';}
+      else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';} else if(c!=='\r')cur+=c; } }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);} return rows; }
+function startCloud(){
+  setSync(effectiveCsvUrl()?'同步中…':'未連結');
+  if(effectiveCsvUrl()){ syncCloud(); if(cloudTimer)clearInterval(cloudTimer); cloudTimer=setInterval(()=>syncCloud(),60000); }
+}
+function syncCloud(force){
+  let url=effectiveCsvUrl();
+  if(!url && force){ url=(prompt('貼上 Google 試算表「CEO評核台」發布的 CSV 網址：\n（試算表→檔案→共用→發布到網路→選 CEO評核台＋CSV）')||'').trim(); if(url) localStorage.setItem('chengyou_csv',url); }
+  if(!url){ setSync('未連結'); return; }
+  setSync('同步中…');
+  fetch(url+(url.indexOf('?')>=0?'&':'?')+'_t='+Date.now())
+    .then(r=>{ if(!r.ok) throw 0; return r.text(); })
+    .then(txt=>{ plotCloud(parseCSV(txt)); setSync('已同步 '+cloudObjs.length+' 位 · '+new Date().toLocaleTimeString('zh-TW',{hour12:false})); })
+    .catch(()=>setSync('讀取失敗（確認已發布為CSV、網址正確）'));
+}
+function clearCloud(){ cloudObjs.forEach(o=>{root.remove(o.grp);o.el.remove();}); cloudObjs=[]; }
+function plotCloud(rows){
+  clearCloud();
+  if(rows&&rows.length>=2){
+    for(let i=1;i<rows.length;i++){ const r=rows[i]; if(!r||!(r[1]||'').trim()) continue;
+      const co=[8,9,10].map(j=>parseFloat(r[j])), se=[4,5,6].map(j=>parseFloat(r[j]));
+      const hasCo=co.every(v=>!isNaN(v)), hasSe=se.every(v=>!isNaN(v));
+      let biz,ldr,mind,official;
+      if(hasCo){biz=co[0];ldr=co[1];mind=co[2];official=true;}
+      else if(hasSe){biz=se[0];ldr=se[1];mind=se[2];official=false;}
+      else continue;
+      const total=biz*0.35+ldr*0.45+mind*0.20, ty=typeOf(biz,ldr,mind);
+      addCloudOrb({name:(r[1]||'').trim(), q:(r[3]||'').trim(), biz,ldr,mind,total,ty,official});
+    }
+  }
+  $('#rCount').textContent=subjectsTotal();
+}
+function addCloudOrb(s){
+  const x=(s.biz/100*2-1)*CUBE,y=(s.ldr/100*2-1)*CUBE,z=(s.mind/100*2-1)*CUBE;
+  const grp=new THREE.Group();grp.position.set(x,y,z);
+  const col=new THREE.Color(s.ty.color);
+  const core=new THREE.Mesh(new THREE.SphereGeometry(s.official?0.14:0.1,16,16),
+     new THREE.MeshBasicMaterial({color:s.official?0xffffff:col,transparent:!s.official,opacity:s.official?1:.55}));grp.add(core);
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:window._glow,color:col,transparent:true,opacity:s.official?.95:.45,blending:THREE.AdditiveBlending,depthWrite:false}));halo.scale.set(1.5,1.5,1);grp.add(halo);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.27,.013,8,40),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:s.official?1:.5,blending:THREE.AdditiveBlending}));grp.add(ring);
+  root.add(grp);
+  const el=document.createElement('div');el.className='nlab';el.style.setProperty('--c',s.ty.color);
+  el.innerHTML=`<div class="nm" style="font-size:11.5px"><span class="code">☁</span>${s.name}</div>
+    <div class="sub">${s.q} · ${s.official?'公司評':'自評(待評)'} ${s.total.toFixed(0)} · ${s.ty.id}${s.ty.name}</div>`;
+  el.addEventListener('click',()=>openType(s.ty));
+  $('#labels').appendChild(el);
+  cloudObjs.push({el,grp,core,ring});
+  ping(grp.position.clone(),col);
+}
+
+/* restore saved orbs */
+function restoreSubjects(){
+  loadSubjects().forEach(s=>placeOrb(s));
+  $('#rCount').textContent=subjectsTotal(); renderSaved();
+}
+
+/* ============================================================
+   7. 說明面板
+   ============================================================ */
+function renderHelp(){
+  $('#helpBody').innerHTML=`
+  <div class="kv"><div class="k">這是什麼</div><div class="v">把六大評核維度收斂為三條軸，組成一個立體矩陣。立方體的 8 個角＝8 種主管人才類型（高/低 × 高/低 × 高/低，取消「中」）。</div></div>
+  <div class="axblock"><h4 style="color:#ffb300">X · 業績力 <span class="wt">35%</span></h4><div class="wt">經營績效：招生、留班、淨利、現金流</div></div>
+  <div class="axblock"><h4 style="color:#36e0ff">Y · 領導力 <span class="wt">45%</span></h4><div class="wt">領導統御 25% ＋ 執行紀律 20%</div></div>
+  <div class="axblock"><h4 style="color:#ff5ecb">Z · 心態力 <span class="wt">20%</span></h4><div class="wt">創業心態 10% ＋ 家長學生 5% ＋ 合規文化 5%</div></div>
+  <div class="kv"><div class="k">操作</div><div class="v">
+    • 電腦：拖曳＝旋轉、滾輪＝縮放；手機：單指拖曳＝旋轉、雙指＝縮放<br>
+    • 點任一節點或名稱 → 下鑽第 1 層（類型策略）→ 再點「展開評核細項」→ 第 2 層（指標）<br>
+    • 方向鍵旋轉、<b>空白鍵</b>切換自動旋轉、<b>Esc</b>關閉面板<br>
+    • 「控制台」輸入公司評 → 立體定位 + 8型 + 分紅 + 差異分析；存檔後可點 <b>✎</b> 重新編輯公司評</div></div>
+  <div class="kv"><div class="k">雲端共用（全體看同一份）</div><div class="v">設定好試算表 CSV 後，按頂部 <b>☁ 同步</b>，所有人開連結都讀同一張表、看到同一個立體圖。☁ 標記＝來自試算表的受評主任（實心＝已公司評，半透明＝僅自評待評）。</div></div>
+  <div class="kv"><div class="k">分界線</div><div class="v">各軸 ≥ ${THRESHOLD} 分為「高」，&lt; ${THRESHOLD} 為「低」（達標線）。</div></div>
+  <div class="kv"><div class="k">機密</div><div class="v">本系統為 CEO 專屬；本機存檔僅此電腦可見。線上問卷自動帶入請見隨附 Google 表單系統。</div></div>`;
+}
+
+/* ============================================================
+   8. 啟動：密碼門 + 開機動畫
+   ============================================================ */
+$('#enter').onclick=tryEnter;
+$('#pass').addEventListener('keydown',e=>{if(e.key==='Enter')tryEnter();});
+function tryEnter(){
+  if($('#pass').value===PASSCODE){ $('#gate').style.display='none'; boot(); }
+  else { $('#perr').textContent='✕ 存取碼錯誤'; $('#pass').value=''; }
+}
+function boot(){
+  initThree(); buildConsoleInputs(); restoreSubjects(); startCloud();
+  resetView();
+  const steps=['CALIBRATING AXES…','LOADING TALENT NODES…','RENDERING HOLOGRAM…','SYSTEM ONLINE'];
+  let i=0; const bt=$('#bootTxt'),bar=$('#bootBar');
+  const iv=setInterval(()=>{ i++; bar.style.width=Math.min(100,i*12)+'%';
+    if(i%3===0&&steps.length) bt.textContent=steps.shift()||'SYSTEM ONLINE';
+    if(i>=9){clearInterval(iv); $('#boot').classList.add('gone'); setTimeout(()=>$('#boot').remove(),900);}
+  },140);
+}
+/* console mode tabs + clock + clear */
+window.addEventListener('DOMContentLoaded',()=>{
+  // mode tabs need DOM ready (inputs built after enter); attach via delegation
+  document.addEventListener('click',e=>{
+    if(e.target.id==='mDetail')setMode('detail');
+    if(e.target.id==='mQuick')setMode('quick');
+  });
+  document.addEventListener('change',e=>{if(e.target.id==='useSelf'){$('#seGrid').classList.toggle('hidden',!e.target.checked);}});
+  document.addEventListener('click',e=>{if(e.target.id==='bCalc')calc();if(e.target.id==='bClearAll'){if(confirm('確定清空全部本機存檔？')){saveSubjects([]);subjectObjs.forEach(o=>{root.remove(o.grp);o.el.remove();});subjectObjs=[];editingId=null;renderSaved();$('#rCount').textContent=subjectsTotal();}}});
+  setInterval(()=>{const d=new Date();$('#rClock').textContent=d.toLocaleTimeString('zh-TW',{hour12:false});},1000);
+  boot(); // 直接進入系統，無密碼
+});
+</script>
+</body>
+</html>

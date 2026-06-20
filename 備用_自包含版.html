@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>程優教育科技｜主管人才評比系統 3D（雲端共用版）</title>
+<style>
+:root{
+  --bg:#04060d;--ink:#dCEBFF;--dim:#7d8db0;--line:rgba(120,180,255,.18);
+  --cyan:#36e0ff;--amber:#ffb300;--magenta:#ff5ecb;--gold:#ffd34d;
+  --panel:rgba(12,20,38,.94);--good:#54ff9f;--warn:#ffb84d;--bad:#ff5e6e;
+  --font:"Segoe UI","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--font);overflow:hidden;user-select:none}
+#space{position:fixed;inset:0;background:
+  radial-gradient(1200px 800px at 70% 18%,rgba(40,90,160,.20),transparent 60%),
+  radial-gradient(900px 700px at 18% 82%,rgba(120,40,140,.18),transparent 60%),
+  radial-gradient(100% 100% at 50% 50%,#070b16 0%,#03050b 70%,#010207 100%)}
+#stars{position:fixed;inset:0;overflow:hidden;pointer-events:none}
+.star{position:absolute;width:2px;height:2px;border-radius:50%;background:#cfe6ff;opacity:.5;animation:tw 3s infinite alternate}
+@keyframes tw{to{opacity:.15}}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:5;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.02) 0 1px,transparent 1px 3px);mix-blend-mode:overlay;opacity:.5}
+#vig{position:fixed;inset:0;pointer-events:none;z-index:5;box-shadow:inset 0 0 240px 50px rgba(0,0,0,.85)}
+.corner{position:fixed;width:32px;height:32px;border:2px solid rgba(120,210,255,.45);z-index:7;pointer-events:none;filter:drop-shadow(0 0 6px rgba(54,224,255,.5))}
+.corner.tl{left:14px;top:14px;border-right:0;border-bottom:0}.corner.tr{right:14px;top:14px;border-left:0;border-bottom:0}
+.corner.bl{left:14px;bottom:14px;border-right:0;border-top:0}.corner.br{right:14px;bottom:14px;border-left:0;border-top:0}
+
+/* stage */
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;perspective:1200px;z-index:2;touch-action:none;cursor:grab}
+#stage.drag{cursor:grabbing}
+#world{position:relative;width:0;height:0;transform-style:preserve-3d;transition:none}
+.edge,.axis{position:absolute;left:0;top:0;transform-style:preserve-3d}
+.edge{background:linear-gradient(90deg,rgba(79,210,255,.05),rgba(79,210,255,.5),rgba(79,210,255,.05))}
+.node{position:absolute;left:0;top:0;transform-style:preserve-3d}
+.bb{position:absolute;left:0;top:0;transform-style:preserve-3d}
+.dot{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,#fff,var(--c) 60%,transparent 72%);
+  box-shadow:0 0 18px 4px var(--c),0 0 40px 8px var(--c);cursor:pointer}
+.dot.sm{width:13px;height:13px;margin:-6.5px}
+.dot.ring:after{content:"";position:absolute;inset:-7px;border:1.5px solid var(--c);border-radius:50%;opacity:.6}
+.chip{position:absolute;left:50%;top:50%;transform:translate(-50%,calc(-100% - 14px));text-align:center;cursor:pointer;white-space:nowrap}
+.chip .nm{font-size:12.5px;font-weight:800;color:#fff;text-shadow:0 0 10px var(--c),0 1px 2px #000}
+.chip .code{display:inline-block;min-width:16px;height:16px;line-height:16px;border-radius:5px;font-size:10px;margin-right:5px;color:#04101a;background:var(--c);box-shadow:0 0 10px var(--c);font-weight:800;vertical-align:middle}
+.chip .sub{margin-top:3px;font-size:9px;color:#bcd2f2;max-width:150px;white-space:normal;line-height:1.34;text-shadow:0 1px 3px #000;margin-left:auto;margin-right:auto}
+.chip.subj .nm{font-size:11px}.chip.subj .sub{color:#9fb6dd}
+.axlbl{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:12px;font-weight:800;letter-spacing:2px;white-space:nowrap;text-shadow:0 0 12px currentColor,0 1px 2px #000}
+.axlbl small{display:block;font-size:8.5px;letter-spacing:1px;opacity:.8;font-weight:500}
+
+/* HUD */
+#top{position:fixed;left:0;right:0;top:0;z-index:9;display:flex;align-items:center;gap:9px;padding:13px 22px}
+#brand{display:flex;flex-direction:column;line-height:1.15}#brand b{font-size:15px;letter-spacing:2px}#brand small{color:var(--cyan);font-size:10px;letter-spacing:4px}
+.chipx{font-size:10px;letter-spacing:1.4px;color:var(--dim);border:1px solid var(--line);padding:5px 10px;border-radius:20px;background:rgba(10,18,34,.55);white-space:nowrap}
+.lockx{color:var(--gold);border-color:rgba(255,211,77,.4)}
+#spacer{flex:1}
+.btn{cursor:pointer;font-family:var(--font);font-size:12px;letter-spacing:1px;color:var(--ink);border:1px solid rgba(120,200,255,.35);background:rgba(14,26,48,.6);padding:8px 12px;border-radius:9px;transition:.18s;display:flex;align-items:center;gap:5px}
+.btn:hover{border-color:var(--cyan);box-shadow:0 0 16px rgba(54,224,255,.35);color:#fff}
+.btn.on{border-color:var(--cyan);background:rgba(54,224,255,.15);box-shadow:0 0 16px rgba(54,224,255,.3)}
+#bottom{position:fixed;left:0;right:0;bottom:0;z-index:9;display:flex;gap:16px;align-items:center;padding:11px 22px;color:var(--dim);font-size:10.5px;letter-spacing:1.2px}
+#bottom b{color:var(--cyan)}#hintb{margin-left:auto}#hintb kbd{color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:10px}
+
+/* panels */
+.panel{position:fixed;top:0;height:100%;width:380px;max-width:90vw;z-index:12;background:var(--panel);backdrop-filter:blur(10px);border-left:1px solid var(--line);box-shadow:-20px 0 60px rgba(0,0,0,.6);transform:translateX(110%);transition:transform .42s cubic-bezier(.2,.9,.25,1);display:flex;flex-direction:column}
+#drill{right:0}.panel.open{transform:translateX(0)}
+#consolePanel{left:0;right:auto;border-left:0;border-right:1px solid var(--line);transform:translateX(-110%);box-shadow:20px 0 60px rgba(0,0,0,.6)}
+#consolePanel.open{transform:translateX(0)}
+#helpPanel{right:0}
+.phead{padding:17px 19px;border-bottom:1px solid var(--line);position:relative}
+.phead .tag{font-size:10px;letter-spacing:3px;color:var(--cyan)}.phead h2{margin:8px 0 2px;font-size:20px;letter-spacing:1px}
+.phead .px{position:absolute;right:14px;top:14px;cursor:pointer;color:var(--dim);font-size:20px;border:1px solid var(--line);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center}
+.phead .px:hover{color:#fff;border-color:var(--cyan)}
+.pbody{padding:17px 19px 26px;overflow:auto;flex:1}
+.pbody::-webkit-scrollbar{width:8px}.pbody::-webkit-scrollbar-thumb{background:rgba(120,180,255,.25);border-radius:8px}
+.coord{display:flex;gap:8px;margin:4px 0 14px;flex-wrap:wrap}.coord span{font-size:11px;border:1px solid var(--line);border-radius:7px;padding:5px 9px}
+.hi{color:var(--good);border-color:rgba(84,255,159,.4)!important}.lo{color:var(--bad);border-color:rgba(255,94,110,.4)!important}
+.kv{margin:13px 0}.kv .k{font-size:10px;letter-spacing:2px;color:var(--cyan);margin-bottom:5px}.kv .v{font-size:13px;line-height:1.6}
+.pill{display:inline-block;font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--line);margin:3px 6px 3px 0}
+.bigbtn{display:block;width:100%;text-align:center;margin-top:8px;padding:12px;border-radius:10px;cursor:pointer;font-size:13px;letter-spacing:1px;color:#04101a;background:linear-gradient(90deg,var(--cyan),#8be9ff);border:0;font-weight:800;box-shadow:0 0 22px rgba(54,224,255,.4);font-family:var(--font)}
+.bigbtn.alt{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none;font-weight:600}.bigbtn.alt:hover{border-color:var(--cyan)}
+.axblock{border:1px solid var(--line);border-radius:12px;padding:12px 13px;margin:11px 0;background:rgba(8,14,28,.5)}
+.axblock h4{margin:0 0 4px;font-size:14px}.axblock .wt{font-size:10px;color:var(--dim)}
+.axblock ul{margin:8px 0 0;padding-left:0;list-style:none}.axblock li{font-size:11.5px;color:#b6c6e6;padding:5px 0;border-top:1px dashed rgba(120,180,255,.12);line-height:1.5}.axblock li b{color:#fff}.axblock li .src{display:block;color:var(--dim);font-size:10px;margin-top:2px}
+.field{margin:10px 0}.field label{display:block;font-size:10.5px;letter-spacing:1.4px;color:var(--cyan);margin-bottom:5px}
+.field input,.field select{width:100%;font-family:var(--font);font-size:13px;color:#fff;background:rgba(8,14,28,.8);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+.field input:focus{outline:0;border-color:var(--cyan);box-shadow:0 0 12px rgba(54,224,255,.3)}
+.grid6{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dimrow label{display:flex;justify-content:space-between;font-size:11px;color:#b6c6e6}.dimrow .w{color:var(--dim);font-size:9.5px}.dimrow input{padding:7px 9px}
+.modetabs{display:flex;gap:6px;margin:6px 0 10px}.modetabs .btn{flex:1;justify-content:center;padding:8px}
+.seg{font-size:10px;color:var(--dim);letter-spacing:2px;margin:16px 0 6px;border-top:1px solid var(--line);padding-top:11px}
+.scorebar{height:8px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden;margin:5px 0 2px}.scorebar i{display:block;height:100%;border-radius:6px}
+.resrow{display:flex;justify-content:space-between;font-size:12px;margin-top:9px}.resrow b{font-size:13px}
+.verdict{margin-top:12px;border-radius:12px;padding:12px;border:1px solid var(--line);background:rgba(8,14,28,.6)}.verdict .t{font-size:17px;font-weight:800}.verdict .d{font-size:11.5px;color:#b6c6e6;margin-top:6px;line-height:1.55}
+.saved{margin-top:8px}.savedItem{display:flex;align-items:center;gap:8px;font-size:12px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;margin-top:7px;cursor:pointer;background:rgba(8,14,28,.5)}.savedItem:hover{border-color:var(--cyan)}
+.savedItem .dot2{width:9px;height:9px;border-radius:50%;flex:none}.savedItem .si-main{flex:1;min-width:0}
+.savedItem .ed,.savedItem .rm{flex:none;color:var(--dim);font-size:15px;padding:4px 6px;border-radius:6px}.savedItem .ed:hover{color:var(--cyan);background:rgba(54,224,255,.12)}.savedItem .rm:hover{color:var(--bad);background:rgba(255,94,110,.12)}
+.muted{color:var(--dim);font-size:11px;line-height:1.5}
+.hidden{display:none!important}
+#boot{position:fixed;inset:0;z-index:30;background:#02040a;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:opacity .7s}
+#boot.gone{opacity:0;pointer-events:none}#boot .bt{font-size:13px;letter-spacing:3px;color:var(--cyan);font-family:ui-monospace,monospace}
+#boot .bar{width:300px;height:3px;background:rgba(255,255,255,.08);border-radius:3px;margin-top:16px;overflow:hidden}#boot .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--magenta));box-shadow:0 0 12px var(--cyan)}
+@media (max-width:760px){
+  #top{padding:8px 10px;gap:6px}#brand b{font-size:13px}#brand small{display:none}.chipx.hideS{display:none}
+  .btn{padding:9px 10px;min-height:42px}.btn .bt{display:none}.btn .bi{font-size:16px}
+  #bottom{padding:9px 11px;gap:9px;font-size:10px}.rd.opt{display:none}#hintb{display:none}.corner{width:18px;height:18px}
+  .panel{width:100vw;max-width:100vw;height:88vh;top:auto;bottom:0;border-left:0;border-radius:18px 18px 0 0;transform:translateY(110%);box-shadow:0 -20px 60px rgba(0,0,0,.6)}
+  .panel.open{transform:translateY(0)}#consolePanel{transform:translateY(110%)}#consolePanel.open{transform:translateY(0)}
+  .field input,.field select{font-size:16px}.dimrow input{font-size:16px}
+  .savedItem .ed,.savedItem .rm{font-size:19px;padding:8px 9px}
+}
+</style>
+</head>
+<body>
+<div id="space"></div><div id="stars"></div>
+<div id="stage"><div id="world"></div></div>
+<div id="fx"></div><div id="vig"></div>
+<div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+
+<div id="top">
+  <div id="brand"><b>主管人才評比系統</b><small>TALENT MATRIX · 3D</small></div>
+  <span class="chipx lockx hideS">◆ CEO ONLY</span>
+  <span class="chipx hideS" id="syncChip">☁ 雲端：未連結</span>
+  <div id="spacer"></div>
+  <button class="btn on" id="bAuto"><span class="bi">⟲</span><span class="bt">自動旋轉</span></button>
+  <button class="btn" id="bReset"><span class="bi">⟱</span><span class="bt">重置</span></button>
+  <button class="btn" id="bSync"><span class="bi">☁</span><span class="bt">同步</span></button>
+  <button class="btn" id="bConsole"><span class="bi">▤</span><span class="bt">控制台</span></button>
+  <button class="btn" id="bHelp"><span class="bi">?</span><span class="bt">說明</span></button>
+</div>
+<div id="bottom">
+  <span class="rd opt">8 型 · 角點 2³</span><span class="rd opt">縮放 <b id="rZoom">100%</b></span>
+  <span class="rd">受評 <b id="rCount">0</b></span><span class="rd" id="rClock">--:--:--</span>
+  <span id="hintb"><kbd>拖曳</kbd> 旋轉 · <kbd>滾輪</kbd> 縮放 · <kbd>點節點</kbd> 下鑽</span>
+</div>
+
+<aside class="panel" id="drill"><div class="phead"><div class="tag" id="dTag">人才類型</div><h2 id="dTitle">—</h2><div class="px" id="dClose">✕</div></div><div class="pbody" id="dBody"></div></aside>
+
+<aside class="panel" id="consolePanel">
+  <div class="phead"><div class="tag">CEO 評核控制台</div><h2>公司評 · 立體定位</h2><div class="px" id="cpClose">✕</div></div>
+  <div class="pbody">
+    <div class="field"><label>受評主任 / 分校</label><input id="inName" placeholder="例：王主任（中山分校）"/></div>
+    <div class="field"><label>評核季度</label><input id="inQ" placeholder="例：2026 Q2"/></div>
+    <div class="modetabs"><button class="btn on" id="mDetail">六維度評分</button><button class="btn" id="mQuick">三軸快速</button></div>
+    <div id="paneDetail">
+      <div class="seg">公司評（1–10 分／維度）</div><div class="grid6" id="coGrid"></div>
+      <div class="seg">主任自評（選填，算差異 Δ）</div>
+      <label class="muted" style="display:flex;gap:7px;align-items:center;margin-bottom:8px"><input type="checkbox" id="useSelf" style="width:auto"/> 一併輸入自評</label>
+      <div class="grid6 hidden" id="seGrid"></div>
+    </div>
+    <div id="paneQuick" class="hidden">
+      <div class="seg">直接輸入三軸分數（0–100）</div>
+      <div class="field dimrow"><label>業績力 <span class="w">經營績效 35%</span></label><input type="number" id="qBiz" min="0" max="100" value="70"/></div>
+      <div class="field dimrow"><label>領導力 <span class="w">領導+執行 45%</span></label><input type="number" id="qLdr" min="0" max="100" value="70"/></div>
+      <div class="field dimrow"><label>心態力 <span class="w">創業+關係+合規 20%</span></label><input type="number" id="qMind" min="0" max="100" value="70"/></div>
+    </div>
+    <button class="bigbtn" id="bCalc" style="margin-top:14px">⟢ 計算並定位</button>
+    <div id="result"></div>
+    <div class="seg">已存檔受評主任</div>
+    <div class="saved" id="savedList"><div class="muted">尚無資料。</div></div>
+    <div class="seg">搬移資料（換檔／上架／給其他CEO）</div>
+    <div style="display:flex;gap:8px"><button class="bigbtn alt" id="bExport" style="margin-top:0">⤓ 匯出檔</button><button class="bigbtn alt" id="bImport" style="margin-top:0">⤒ 匯入檔</button></div>
+    <button class="bigbtn alt" id="bExportCSV" style="margin-top:8px">⤓ 匯出 CSV（貼進試算表）</button>
+    <input type="file" id="fileImport" accept=".json,application/json" style="display:none">
+    <button class="bigbtn alt" id="bClearAll" style="margin-top:14px">清空全部本機存檔</button>
+    <p class="muted" style="margin-top:10px">本機存檔僅此瀏覽器可見。要全體看同一份，請設定雲端試算表（見說明）。</p>
+  </div>
+</aside>
+
+<aside class="panel" id="helpPanel"><div class="phead"><div class="tag">使用說明</div><h2>如何操作</h2><div class="px" id="hpClose">✕</div></div><div class="pbody" id="helpBody"></div></aside>
+
+<div id="boot"><div class="bt" id="bootTxt">INITIALIZING TALENT MATRIX…</div><div class="bar"><i id="bootBar"></i></div></div>
+
+<script>
+/* ===== 設定 ===== */
+const SHEET_CSV_URL = ""; // 貼上 Google 試算表「CEO評核台」發布的 CSV 網址 → 全體看同一份
+const THRESHOLD = 70, S = 150, AX = 240;
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+
+const DIMS=[
+ {k:"A",name:"經營績效",w:35,axis:"biz",items:["A1 新生招生達成率","A2 舊生留班率","A3 分校淨利潤達成","A4 招生行動量","A5 現金流管理"]},
+ {k:"B",name:"領導統御",w:25,axis:"ldr",items:["B1 日會執行品質","B2 員工向心力","B3 任務分配與追蹤","B4 衝突處理能力","B5 人才培育成效"]},
+ {k:"C",name:"執行力與紀律",w:20,axis:"ldr",items:["C1 出勤與工作紀律","C2 指令執行準時率","C3 報告與回報品質","C4 問題主動回報"]},
+ {k:"D",name:"創業心態",w:10,axis:"mind",items:["D1 主動提案與創新","D2 面對困難的態度","D3 主人翁意識"]},
+ {k:"E",name:"家長與學生關係",w:5,axis:"mind",items:["E1 家長滿意度","E2 學生口碑與介紹率"]},
+ {k:"F",name:"合規與公司文化",w:5,axis:"mind",items:["F1 遵守公司規定","F2 公司文化傳承"]},
+];
+const AXES={
+ biz:{name:"業績力",en:"PERFORMANCE",color:"#ffb300",w:35,desc:"會不會賺錢：招生、留班、淨利、現金流",dims:["A"]},
+ ldr:{name:"領導力",en:"LEADERSHIP",color:"#36e0ff",w:45,desc:"帶不帶得動、做不做得到：團隊統御＋執行紀律",dims:["B","C"]},
+ mind:{name:"心態力",en:"MINDSET",color:"#ff5ecb",w:20,desc:"老闆心態與忠誠：創業心態、口碑、守規",dims:["D","E","F"]},
+};
+const NODES=[
+ {id:1,code:"①",name:"全能帥才",en:"ACE COMMANDER",b:1,l:1,m:1,color:"#ffd34d",sub:"三高全能。可充分授權、利益共享，列接班人。",ptype:"P1 明星將",strat:"充分授權、利益共享、接班人培育、目標升級。",bonus:"≥90 分｜分紅 +5%（共 35%）"},
+ {id:2,code:"②",name:"傭兵悍將",en:"MERCENARY",b:1,l:1,m:0,color:"#ff5e5e",sub:"能打能帶兵，但心態傭兵、忠誠存疑——最需收心。",ptype:"高戰力 · 風險型",strat:"強化文化認同與利益綁定，防挖角/自立；重點關注。",bonus:"達標維持 30%，列管收心"},
+ {id:3,code:"③",name:"單兵王",en:"LONE ACE",b:1,l:0,m:1,color:"#36e0ff",sub:"個人業績猛、心態正，但不會帶團隊。",ptype:"P3 拼命郎",strat:"補領導與授權能力，導師制、小步帶人。",bonus:"達標維持 30%＋領導培訓"},
+ {id:4,code:"④",name:"績效孤星",en:"COLD STAR",b:1,l:0,m:0,color:"#2bd9c4",sub:"只有業績，不帶人、心態冷，長期是團隊隱憂。",ptype:"績效 · 警示型",strat:"要求帶人與守規，設團隊指標，觀察心態。",bonus:"達標維持 30%，觀察期"},
+ {id:5,code:"⑤",name:"明日之星",en:"RISING STAR",b:0,l:1,m:1,color:"#54ff9f",sub:"會帶人、心態好、肯拚，業績未爆發——最值得投資。",ptype:"P9 潛力股／P10 穩健將",strat:"給方法給時間、小步快跑、導師陪跑、目標升級。",bonus:"達標維持 30%＋輔導陪跑"},
+ {id:6,code:"⑥",name:"山頭老油條",en:"POLITICIAN",b:0,l:1,m:0,color:"#b07cff",sub:"有手腕會帶人，但業績平、心態油、易結派——危險。",ptype:"P5 老油條",strat:"目標綁定、績效掛鉤，防山頭主義。",bonus:"60–69｜分紅 −5%（25%）預警"},
+ {id:7,code:"⑦",name:"忠誠老黃牛",en:"LOYAL OX",b:0,l:0,m:1,color:"#4d8bff",sub:"忠誠、守規、肯做，但業績與領導皆弱。",ptype:"P11 忠誠兵",strat:"激發動機、目標管理、專業深化或轉輔助職。",bonus:"達標維持 30%／啟動輔導"},
+ {id:8,code:"⑧",name:"待轉型",en:"DEPLETER",b:0,l:0,m:0,color:"#8a93a6",sub:"業績·領導·心態 全低。績效面談、限期改善(PIP)。",ptype:"P12 消耗者／P8 毒瘤星",strat:"績效面談、PIP 三個月，無改善則調整或淘汰。",bonus:"<60｜分紅 −10%（20%）＋PIP"},
+];
+
+/* ===== 計分 ===== */
+function axisScores(d){const{A,B,C,D,E,F}=d;return{biz:A*10,ldr:(B*25+C*20)/45*10,mind:(D*10+E*5+F*5)/20*10,total:(A*0.35+B*0.25+C*0.20+D*0.10+E*0.05+F*0.05)*10};}
+function typeOf(b,l,m,t=THRESHOLD){const B=b>=t?1:0,L=l>=t?1:0,M=m>=t?1:0;return NODES.find(n=>n.b===B&&n.l===L&&n.m===M);}
+function bonusBand(t){if(t>=90)return{t:"卓越 · +5%（共 35%）",c:"var(--good)"};if(t>=80)return{t:"達標 · 維持 30%",c:"var(--good)"};if(t>=70)return{t:"達標 · 維持 30%＋輔導",c:"var(--warn)"};if(t>=60)return{t:"預警 · −5%（共 25%）",c:"var(--warn)"};return{t:"嚴重 · −10%（20%）＋PIP",c:"var(--bad)"};}
+function clamp(v){return Math.max(0,Math.min(100,isNaN(v)?0:v));}
+function r1(x){return Math.round(x*10)/10;}
+
+/* ===== CSS-3D 渲染 ===== */
+let rx=-18, ry=35, zoom=1, auto=true, editingId=null;
+let nodeEls=[], subjEls=[], cloudEls=[], bbEls=[];
+const world=$('#world');
+
+function el(cls,html){const d=document.createElement('div');d.className=cls;if(html)d.innerHTML=html;return d;}
+function place(node,x,y,z){node.style.transform=`translate3d(${x}px,${y}px,${z}px)`;}
+
+function buildStars(){const f=$('#stars');for(let i=0;i<90;i++){const s=el('star');s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';s.style.animationDelay=(Math.random()*3)+'s';s.style.opacity=.2+Math.random()*.5;f.appendChild(s);}}
+
+function buildCube(){
+  // 12 edges
+  const C=[-1,1];
+  C.forEach(y=>C.forEach(z=>{const e=el('edge');e.style.width=(2*S)+'px';e.style.height='2px';place(e,-S,y*S,z*S);world.appendChild(e);}));
+  C.forEach(x=>C.forEach(z=>{const e=el('edge');e.style.width='2px';e.style.height=(2*S)+'px';place(e,x*S,-S,z*S);world.appendChild(e);}));
+  C.forEach(x=>C.forEach(y=>{const e=el('edge');e.style.width=(2*S)+'px';e.style.height='2px';e.style.transformOrigin='0 0';e.style.transform=`translate3d(${-S}px,${y*S}px,${-S}px) rotateY(90deg)`;world.appendChild(e);}));
+}
+function buildAxes(){
+  const defs=[{a:'biz',v:[1,0,0],c:'#ffb300'},{a:'ldr',v:[0,-1,0],c:'#36e0ff'},{a:'mind',v:[0,0,1],c:'#ff5ecb'}];
+  defs.forEach(d=>{
+    const ax=AXES[d.a];
+    const line=el('axis');line.style.background=`linear-gradient(90deg,transparent,${d.c},transparent)`;
+    if(d.a==='biz'){line.style.width=(2*AX)+'px';line.style.height='2px';place(line,-AX,0,0);}
+    if(d.a==='ldr'){line.style.width='2px';line.style.height=(2*AX)+'px';place(line,0,-AX,0);}
+    if(d.a==='mind'){line.style.width=(2*AX)+'px';line.style.height='2px';line.style.transformOrigin='0 0';line.style.transform=`translate3d(${-AX}px,0,${-AX}px) rotateY(90deg)`;}
+    line.style.boxShadow=`0 0 10px ${d.c}`;world.appendChild(line);
+    // label at + end (high)
+    const hx=d.v[0]*(AX+30),hy=d.v[1]*(AX+30),hz=d.v[2]*(AX+30);
+    addBB(hx,hy,hz,`<div class="axlbl" style="color:${d.c}">${ax.name} ▲ 高<small>${ax.en} · ${ax.w}%</small></div>`);
+    const lx=-d.v[0]*(AX+20),ly=-d.v[1]*(AX+20),lz=-d.v[2]*(AX+20);
+    addBB(lx,ly,lz,`<div class="axlbl" style="color:#5b6b8c">低 ▽<small>${ax.name}</small></div>`);
+  });
+}
+function addBB(x,y,z,inner){const node=el('node');place(node,x,y,z);const bb=el('bb');bb.innerHTML=inner;node.appendChild(bb);world.appendChild(node);bbEls.push(bb);return bb;}
+
+function buildNodes(){
+  NODES.forEach(n=>{
+    const x=(n.b?1:-1)*S,y=(n.l?-1:1)*S,z=(n.m?1:-1)*S;
+    const node=el('node');place(node,x,y,z);
+    const bb=el('bb');bb.style.setProperty('--c',n.color);
+    bb.innerHTML=`<div class="dot ring"></div><div class="chip"><div class="nm"><span class="code">${n.id}</span>${n.name}</div><div class="sub">${n.sub}</div></div>`;
+    bb.querySelector('.chip').onclick=()=>openType(n);
+    bb.querySelector('.dot').onclick=()=>openType(n);
+    node.appendChild(bb);world.appendChild(node);bbEls.push(bb);nodeEls.push({n,node,bb});
+  });
+}
+function render(){
+  world.style.transform=`scale(${zoom}) rotateX(${rx}deg) rotateY(${ry}deg)`;
+  const inv=`rotateY(${-ry}deg) rotateX(${-rx}deg)`;
+  for(const bb of bbEls) bb.style.transform=inv;
+  $('#rZoom').textContent=Math.round(zoom*100)+'%';
+}
+function loop(){ if(auto){ry+=0.22; render();} requestAnimationFrame(loop); }
+
+/* interaction */
+let drag=false,lx=0,ly=0,moved=0;
+const stage=$('#stage');
+stage.addEventListener('pointerdown',e=>{drag=true;moved=0;lx=e.clientX;ly=e.clientY;stage.classList.add('drag');stage.setPointerCapture(e.pointerId);});
+stage.addEventListener('pointermove',e=>{if(!drag)return;const dx=e.clientX-lx,dy=e.clientY-ly;lx=e.clientX;ly=e.clientY;moved+=Math.abs(dx)+Math.abs(dy);ry+=dx*0.32;rx-=dy*0.32;auto=false;$('#bAuto').classList.remove('on');render();});
+stage.addEventListener('pointerup',e=>{drag=false;stage.classList.remove('drag');});
+stage.addEventListener('wheel',e=>{e.preventDefault();zoom*=(1-Math.sign(e.deltaY)*0.08);zoom=Math.max(0.45,Math.min(2.4,zoom));render();},{passive:false});
+let pinch=0;
+stage.addEventListener('touchmove',e=>{if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pinch){zoom*=d/pinch;zoom=Math.max(0.45,Math.min(2.4,zoom));render();}pinch=d;e.preventDefault();}},{passive:false});
+stage.addEventListener('touchend',()=>pinch=0);
+window.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeAll();
+  else if(e.key==='ArrowLeft'){ry-=4;render();}else if(e.key==='ArrowRight'){ry+=4;render();}
+  else if(e.key==='ArrowUp'){rx-=4;render();}else if(e.key==='ArrowDown'){rx+=4;render();}
+  else if(e.key==='+'||e.key==='='){zoom=Math.min(2.4,zoom*1.08);render();}
+  else if(e.key==='-'){zoom=Math.max(0.45,zoom*0.92);render();}
+  else if(e.key===' '){toggleAuto();e.preventDefault();}
+});
+function toggleAuto(){auto=!auto;$('#bAuto').classList.toggle('on',auto);}
+function resetView(){rx=-18;ry=35;zoom=1;auto=true;$('#bAuto').classList.add('on');render();}
+function closeAll(){$$('.panel').forEach(p=>p.classList.remove('open'));}
+function togglePanel(sel){const p=$(sel),was=p.classList.contains('open');closeAll();if(!was)p.classList.add('open');}
+
+/* ===== 下鑽面板 ===== */
+function axisTag(h){return h?'<span class="hi">高</span>':'<span class="lo">低</span>';}
+function openType(n){
+  closeAll();$('#drill').classList.add('open');
+  $('#dTag').textContent='人才類型 · '+n.en;
+  $('#dTitle').innerHTML=`<span style="color:${n.color}">${n.id}</span> ${n.name}`;
+  $('#dBody').innerHTML=`
+   <div class="coord"><span class="${n.b?'hi':'lo'}">業績力 ${n.b?'高':'低'}</span><span class="${n.l?'hi':'lo'}">領導力 ${n.l?'高':'低'}</span><span class="${n.m?'hi':'lo'}">心態力 ${n.m?'高':'低'}</span></div>
+   <div class="kv"><div class="k">一句話定義</div><div class="v">${n.sub}</div></div>
+   <div class="kv"><div class="k">對應 12 型</div><div class="v"><span class="pill" style="border-color:${n.color};color:${n.color}">${n.ptype}</span></div></div>
+   <div class="kv"><div class="k">管理策略</div><div class="v">${n.strat}</div></div>
+   <div class="kv"><div class="k">分紅級距</div><div class="v">${n.bonus}</div></div>
+   <button class="bigbtn" id="toL2">展開評核細項（第 2 層）▸</button>`;
+  $('#toL2').onclick=()=>openIndicators(n);
+}
+function openIndicators(n){
+  $('#dTag').textContent='評核細項 · 第 2 層';
+  const flags={biz:n.b,ldr:n.l,mind:n.m};
+  let h=`<p class="muted" style="margin:0 0 10px">${n.id} ${n.name}　三軸構成指標（來源：六大維度 A–F）。</p>`;
+  ['biz','ldr','mind'].forEach(ak=>{const ax=AXES[ak];h+=`<div class="axblock" style="border-color:${ax.color}55"><h4 style="color:${ax.color}">${ax.name} ${axisTag(flags[ak])} <span class="wt">　${ax.en} · ${ax.w}%</span></h4><div class="wt">${ax.desc}</div><ul>`;DIMS.filter(d=>ax.dims.includes(d.k)).forEach(d=>{h+=`<li><b>${d.k}. ${d.name}</b>（${d.w}%）<span class="src">${d.items.join('　·　')}</span></li>`;});h+=`</ul></div>`;});
+  h+=`<div class="kv"><div class="k">此型重點</div><div class="v">${n.strat}</div></div><button class="bigbtn alt" id="backL1">◂ 返回類型總覽（第 1 層）</button>`;
+  $('#dBody').innerHTML=h;$('#backL1').onclick=()=>openType(n);
+}
+
+/* ===== 受評主任：放置光球 ===== */
+function subjPos(biz,ldr,mind){return{x:(biz/100*2-1)*S,y:-(ldr/100*2-1)*S,z:(mind/100*2-1)*S};}
+function placeOrb(s,cloud){
+  const ty=NODES.find(n=>n.id===s.typeId)||typeOf(s.axes.biz,s.axes.ldr,s.axes.mind);
+  const p=subjPos(s.axes.biz,s.axes.ldr,s.axes.mind);
+  const node=el('node');place(node,p.x,p.y,p.z);
+  const bb=el('bb');bb.style.setProperty('--c',(s.color||ty.color));
+  const tag=cloud?'☁':'主';const official=cloud?s.official:true;
+  bb.innerHTML=`<div class="dot sm${official?' ring':''}" style="${official?'':'opacity:.6'}"></div><div class="chip subj"><div class="nm"><span class="code">${tag}</span>${s.name}</div><div class="sub">${s.q||''} · ${official?'公司評':'自評(待評)'} ${Math.round(s.total)} · ${ty.id}${ty.name}</div></div>`;
+  bb.querySelector('.chip').onclick=()=>openType(ty);
+  node.appendChild(bb);world.appendChild(node);bbEls.push(bb);
+  const rec={el:node,bb,id:s.id};(cloud?cloudEls:subjEls).push(rec);return rec;
+}
+function clearLocal(){subjEls.forEach(o=>{o.el.remove();bbEls=bbEls.filter(b=>b!==o.bb);});subjEls=[];}
+function clearCloud(){cloudEls.forEach(o=>{o.el.remove();bbEls=bbEls.filter(b=>b!==o.bb);});cloudEls=[];}
+function subjectsTotal(){return subjEls.length+cloudEls.length;}
+
+/* ===== 控制台 ===== */
+const LS='chengyou_talent_subjects_v1';let mode='detail';
+function buildInputs(){const co=$('#coGrid'),se=$('#seGrid');DIMS.forEach(d=>{co.insertAdjacentHTML('beforeend',`<div class="field dimrow"><label>${d.k} ${d.name} <span class="w">${d.w}%</span></label><input type="number" min="1" max="10" step="0.5" value="7" data-co="${d.k}"></div>`);se.insertAdjacentHTML('beforeend',`<div class="field dimrow"><label>${d.k} ${d.name} <span class="w">自評</span></label><input type="number" min="1" max="10" step="0.5" value="7" data-se="${d.k}"></div>`);});}
+function readD(sel){const o={};$$(`[data-${sel}]`).forEach(i=>o[i.dataset[sel]]=parseFloat(i.value)||0);return o;}
+function setMode(m){mode=m;$('#mDetail').classList.toggle('on',m==='detail');$('#mQuick').classList.toggle('on',m==='quick');$('#paneDetail').classList.toggle('hidden',m!=='detail');$('#paneQuick').classList.toggle('hidden',m!=='quick');}
+function captureInputs(){if(mode==='detail'){return{mode:'detail',co:readD('co'),se:$('#useSelf').checked?readD('se'):null};}return{mode:'quick',quick:{biz:clamp(+$('#qBiz').value),ldr:clamp(+$('#qLdr').value),mind:clamp(+$('#qMind').value)}};}
+function bar(name,v,c){return`<div class="resrow" style="margin-top:10px"><span>${name}</span><b>${v.toFixed(0)}</b></div><div class="scorebar"><i style="width:${v}%;background:${c};box-shadow:0 0 10px ${c}"></i></div>`;}
+function calc(){
+  let axes,total,self=null;
+  if(mode==='detail'){const co=readD('co');axes=axisScores(co);total=axes.total;if($('#useSelf').checked)self=axisScores(readD('se'));}
+  else{const biz=clamp(+$('#qBiz').value),ldr=clamp(+$('#qLdr').value),mind=clamp(+$('#qMind').value);axes={biz,ldr,mind,total:biz*0.35+ldr*0.45+mind*0.20};total=axes.total;}
+  const ty=typeOf(axes.biz,axes.ldr,axes.mind),band=bonusBand(total);
+  let diff='';
+  if(self){const d=self.total-total;const dc=Math.abs(d)<8?{t:'認知一致',c:'var(--good)',n:'自我認知清晰，與外部一致。'}:(d>=8?{t:'自我高估（鄧寧-克魯格）',c:'var(--bad)',n:'自評高於公司評，需直接具體反饋。'}:{t:'自我低估（冒牌者）',c:'var(--cyan)',n:'自評低於公司評，需鼓勵肯定。'});
+   diff=`<div class="verdict" style="border-color:${dc.c}"><div class="t" style="font-size:14px;color:${dc.c}">差異 Δ＝${(d>=0?'+':'')}${d.toFixed(1)}</div><div class="d">${dc.n}<br>自評 ${self.total.toFixed(1)}　公司評 ${total.toFixed(1)}</div></div>`;}
+  $('#result').innerHTML=`${bar('業績力',axes.biz,'#ffb300')}${bar('領導力',axes.ldr,'#36e0ff')}${bar('心態力',axes.mind,'#ff5ecb')}
+   <div class="resrow"><span>加權總分</span><b style="color:${band.c}">${total.toFixed(1)} / 100</b></div>
+   <div class="verdict" style="border-color:${ty.color}"><div class="t" style="color:${ty.color}">${ty.id} ${ty.name}</div><div class="d">${ty.sub}</div><div class="d" style="margin-top:6px;color:${band.c}">分紅：${band.t}</div><div class="d">建議：${ty.strat}</div></div>${diff}
+   <button class="bigbtn" id="bAdd" style="margin-top:12px">${editingId?'✓ 更新此主任':'＋ 加入立體圖並存檔'}</button>${editingId?'<button class="bigbtn alt" id="bCancel" style="margin-top:8px">取消編輯</button>':''}`;
+  const snap=captureInputs();
+  $('#bAdd').onclick=()=>addOrUpdate({name:$('#inName').value||('受評 '+(load().length+1)),q:$('#inQ').value,axes,total,typeId:ty.id,color:ty.color,input:snap});
+  const c=$('#bCancel');if(c)c.onclick=()=>{editingId=null;calc();};
+}
+function load(){try{return JSON.parse(localStorage.getItem(LS)||'[]');}catch(e){return[];}}
+function save(l){try{localStorage.setItem(LS,JSON.stringify(l));}catch(e){}}
+function addOrUpdate(s){
+  const list=load();
+  if(editingId){s.id=editingId;const i=list.findIndex(x=>x.id===editingId);(i>=0)?list[i]=s:list.push(s);save(list);const oi=subjEls.findIndex(o=>o.id===editingId);if(oi>=0){subjEls[oi].el.remove();bbEls=bbEls.filter(b=>b!==subjEls[oi].bb);subjEls.splice(oi,1);}editingId=null;}
+  else{s.id='s'+Date.now();list.push(s);save(list);}
+  placeOrb(s,false);render();renderSaved();$('#rCount').textContent=subjectsTotal();
+  $('#result').innerHTML='<div class="muted" style="margin-top:12px;color:var(--good)">✓ 已存檔並更新立體圖。</div>';
+}
+function renderSaved(){
+  const list=load(),box=$('#savedList');
+  if(!list.length){box.innerHTML='<div class="muted">尚無資料。</div>';return;}
+  box.innerHTML=list.map(s=>{const ty=NODES.find(n=>n.id===s.typeId)||{};return `<div class="savedItem" data-id="${s.id}"><span class="dot2" style="background:${s.color};box-shadow:0 0 8px ${s.color}"></span><span class="si-main"><b>${s.name}</b><br><span class="muted">${s.q||''}　${ty.id||''} ${ty.name||''}　${(s.total||0).toFixed(0)}分</span></span><span class="ed" data-ed="${s.id}">✎</span><span class="rm" data-rm="${s.id}">✕</span></div>`;}).join('');
+  $$('#savedList .ed').forEach(r=>r.onclick=e=>{e.stopPropagation();editSubject(r.dataset.ed);});
+  $$('#savedList .rm').forEach(r=>r.onclick=e=>{e.stopPropagation();removeSubject(r.dataset.rm);});
+}
+function removeSubject(id){if(editingId===id)editingId=null;save(load().filter(s=>s.id!==id));const i=subjEls.findIndex(o=>o.id===id);if(i>=0){subjEls[i].el.remove();bbEls=bbEls.filter(b=>b!==subjEls[i].bb);subjEls.splice(i,1);}renderSaved();$('#rCount').textContent=subjectsTotal();}
+function editSubject(id){const s=load().find(x=>x.id===id);if(!s)return;editingId=id;$('#consolePanel').classList.add('open');$('#drill').classList.remove('open');$('#inName').value=s.name||'';$('#inQ').value=s.q||'';const inp=s.input||{mode:'quick',quick:{biz:s.axes.biz,ldr:s.axes.ldr,mind:s.axes.mind}};if(inp.mode==='detail'){setMode('detail');DIMS.forEach(d=>{const e=document.querySelector('[data-co="'+d.k+'"]');if(e&&inp.co)e.value=inp.co[d.k];});$('#useSelf').checked=!!inp.se;$('#seGrid').classList.toggle('hidden',!inp.se);if(inp.se)DIMS.forEach(d=>{const e=document.querySelector('[data-se="'+d.k+'"]');if(e)e.value=inp.se[d.k];});}else{setMode('quick');$('#qBiz').value=inp.quick.biz;$('#qLdr').value=inp.quick.ldr;$('#qMind').value=inp.quick.mind;}calc();$('#consolePanel .pbody').scrollTop=0;}
+function restore(){load().forEach(s=>placeOrb(s,false));render();$('#rCount').textContent=subjectsTotal();renderSaved();}
+
+/* ===== 匯出／匯入 ===== */
+function dl(text,name,type){const b=new Blob([text],{type:type||'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},600);}
+function exportJSON(){const s=load();if(!s.length){alert('目前沒有本機資料可匯出。');return;}dl(JSON.stringify({app:'chengyou-talent',version:1,exportedAt:new Date().toISOString(),subjects:s},null,2),'評比資料_匯出.json','application/json');}
+function importJSON(file){const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);const inc=Array.isArray(d)?d:(d.subjects||[]);if(!inc.length){alert('沒有可匯入的資料。');return;}const cur=load(),k={};cur.forEach(s=>k[(s.name||'')+'|'+(s.q||'')]=s);let a=0,u=0;inc.forEach(s=>{if(!s.id)s.id='s'+Date.now()+Math.random().toString(36).slice(2,6);const key=(s.name||'')+'|'+(s.q||'');if(k[key]){Object.assign(k[key],s,{id:k[key].id});u++;}else{cur.push(s);k[key]=s;a++;}});save(cur);clearLocal();load().forEach(s=>placeOrb(s,false));render();renderSaved();$('#rCount').textContent=subjectsTotal();alert('匯入完成：新增 '+a+' 筆、更新 '+u+' 筆。');}catch(e){alert('匯入失敗：請確認是本系統匯出的 JSON。');}};rd.readAsText(file);}
+function exportCSV(){const subs=load();if(!subs.length){alert('目前沒有本機資料可匯出。');return;}const head=['時間','主任','分校','季度','自評·業績','自評·領導','自評·心態','自評總分','公司評·業績','公司評·領導','公司評·心態','公司評總分','Δ業績','Δ領導','Δ心態','Δ總分','8型定位','分紅級距','差異警示'];const rows=[head];subs.forEach(s=>{const co=s.axes||{biz:0,ldr:0,mind:0},coT=s.total||0;let se=null;if(s.input&&s.input.se)se=axisScores(s.input.se);const ty=typeOf(co.biz,co.ldr,co.mind),band=bonusBand(coT);const dT=se?(se.total-coT):'';const warn=se?(Math.abs(se.total-coT)>=15?(se.total-coT>0?'⚠ 自我高估':'⚠ 自我低估'):(Math.abs(se.total-coT)>=8?'留意差異':'認知一致')):'';rows.push([new Date().toLocaleString('zh-TW'),s.name||'','',s.q||'',se?r1(se.biz):'',se?r1(se.ldr):'',se?r1(se.mind):'',se?r1(se.total):'',r1(co.biz),r1(co.ldr),r1(co.mind),r1(coT),se?r1(se.biz-co.biz):'',se?r1(se.ldr-co.ldr):'',se?r1(se.mind-co.mind):'',se?r1(dT):'',ty.id+' '+ty.name,band.t,warn]);});const csv=rows.map(r=>r.map(c=>{c=(c==null?'':String(c));return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\n');dl('﻿'+csv,'評比資料_貼進試算表.csv','text/csv;charset=utf-8');}
+
+/* ===== 雲端同步 ===== */
+let cloudTimer=null;
+function csvUrl(){return (SHEET_CSV_URL&&SHEET_CSV_URL.trim())||localStorage.getItem('chengyou_csv')||'';}
+function setSync(t){const c=$('#syncChip');if(c)c.textContent='☁ 雲端：'+t;}
+function parseCSV(text){const rows=[];let row=[],cur='',q=false;for(let i=0;i<text.length;i++){const c=text[i];if(q){if(c==='"'){if(text[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}else{if(c==='"')q=true;else if(c===','){row.push(cur);cur='';}else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}else if(c!=='\r')cur+=c;}}if(cur!==''||row.length){row.push(cur);rows.push(row);}return rows;}
+function startCloud(){setSync(csvUrl()?'同步中…':'未連結');if(csvUrl()){syncCloud();if(cloudTimer)clearInterval(cloudTimer);cloudTimer=setInterval(syncCloud,60000);}}
+function syncCloud(force){let url=csvUrl();if(!url&&force){url=(prompt('貼上 Google 試算表「CEO評核台」發布的 CSV 網址：')||'').trim();if(url){try{localStorage.setItem('chengyou_csv',url);}catch(e){}}}if(!url){setSync('未連結');return;}setSync('同步中…');fetch(url+(url.indexOf('?')>=0?'&':'?')+'_t='+Date.now()).then(r=>{if(!r.ok)throw 0;return r.text();}).then(t=>{plotCloud(parseCSV(t));setSync('已同步 '+cloudEls.length+' 位 · '+new Date().toLocaleTimeString('zh-TW',{hour12:false}));}).catch(()=>setSync('讀取失敗（確認已發布CSV）'));}
+function plotCloud(rows){clearCloud();if(rows&&rows.length>=2){for(let i=1;i<rows.length;i++){const r=rows[i];if(!r||!(r[1]||'').trim())continue;const co=[8,9,10].map(j=>parseFloat(r[j])),se=[4,5,6].map(j=>parseFloat(r[j]));const hasCo=co.every(v=>!isNaN(v)),hasSe=se.every(v=>!isNaN(v));let biz,ldr,mind,official;if(hasCo){biz=co[0];ldr=co[1];mind=co[2];official=true;}else if(hasSe){biz=se[0];ldr=se[1];mind=se[2];official=false;}else continue;const total=biz*0.35+ldr*0.45+mind*0.20,ty=typeOf(biz,ldr,mind);placeOrb({name:(r[1]||'').trim(),q:(r[3]||'').trim(),axes:{biz,ldr,mind},total,typeId:ty.id,color:ty.color,official},true);}}render();$('#rCount').textContent=subjectsTotal();}
+
+/* ===== 說明 ===== */
+function renderHelp(){$('#helpBody').innerHTML=`
+ <div class="kv"><div class="k">這是什麼</div><div class="v">六大維度收斂成三軸，立方體 8 個角＝8 種主管人才（高/低×高/低×高/低，取消「中」）。</div></div>
+ <div class="axblock"><h4 style="color:#ffb300">X · 業績力 <span class="wt">35%</span></h4><div class="wt">經營績效</div></div>
+ <div class="axblock"><h4 style="color:#36e0ff">Y · 領導力 <span class="wt">45%</span></h4><div class="wt">領導統御 25% ＋ 執行紀律 20%</div></div>
+ <div class="axblock"><h4 style="color:#ff5ecb">Z · 心態力 <span class="wt">20%</span></h4><div class="wt">創業心態 10% ＋ 家長學生 5% ＋ 合規 5%</div></div>
+ <div class="kv"><div class="k">操作</div><div class="v">• 電腦拖曳旋轉、滾輪縮放；手機單指旋轉、雙指縮放<br>• 點節點或名稱 → 下鑽第1層 → 「展開評核細項」→ 第2層<br>• 控制台輸入公司評 → 定位+8型+分紅+差異；存檔後點 ✎ 可改公司評<br>• 方向鍵旋轉、空白鍵自動旋轉、Esc 關閉</div></div>
+ <div class="kv"><div class="k">雲端共用</div><div class="v">把試算表「CEO評核台」發布為 CSV，填入檔頭 <b>SHEET_CSV_URL</b>（或按☁同步貼網址）→ 全體看同一份。☁＝來自試算表。</div></div>
+ <div class="kv"><div class="k">分界</div><div class="v">各軸 ≥ ${THRESHOLD} 為高、&lt; ${THRESHOLD} 為低。</div></div>`;}
+
+/* ===== 啟動 ===== */
+$('#bAuto').onclick=toggleAuto;$('#bReset').onclick=resetView;$('#bConsole').onclick=()=>togglePanel('#consolePanel');
+$('#bSync').onclick=()=>syncCloud(true);$('#bHelp').onclick=()=>{renderHelp();togglePanel('#helpPanel');};
+$('#dClose').onclick=()=>$('#drill').classList.remove('open');$('#cpClose').onclick=()=>$('#consolePanel').classList.remove('open');$('#hpClose').onclick=()=>$('#helpPanel').classList.remove('open');
+$('#mDetail').onclick=()=>setMode('detail');$('#mQuick').onclick=()=>setMode('quick');
+$('#useSelf').onchange=e=>$('#seGrid').classList.toggle('hidden',!e.target.checked);
+$('#bCalc').onclick=calc;$('#bExport').onclick=exportJSON;$('#bExportCSV').onclick=exportCSV;$('#bImport').onclick=()=>$('#fileImport').click();
+$('#fileImport').onchange=e=>{if(e.target.files[0])importJSON(e.target.files[0]);e.target.value='';};
+$('#bClearAll').onclick=()=>{if(confirm('確定清空全部本機存檔？')){save([]);clearLocal();editingId=null;render();renderSaved();$('#rCount').textContent=subjectsTotal();}};
+setInterval(()=>{$('#rClock').textContent=new Date().toLocaleTimeString('zh-TW',{hour12:false});},1000);
+
+buildStars();buildCube();buildAxes();buildNodes();buildInputs();restore();startCloud();render();loop();
+let bi=0;const steps=['CALIBRATING AXES…','LOADING NODES…','RENDERING HOLOGRAM…','SYSTEM ONLINE'];
+const biv=setInterval(()=>{bi++;$('#bootBar').style.width=Math.min(100,bi*14)+'%';if(bi%2===0&&steps.length)$('#bootTxt').textContent=steps.shift();if(bi>=8){clearInterval(biv);$('#boot').classList.add('gone');setTimeout(()=>{const b=$('#boot');if(b)b.remove();},800);}},130);
+</script>
+</body>
+</html>
