@@ -26,6 +26,7 @@ from .pdf_utils import extract_pdf_text, parse_class_teacher_pairs
 logger = logging.getLogger("school_scraper")
 
 MAX_CALENDAR_PAGES = 14  # 主頁 + 最多再追蹤約一年份的月份導覽連結，避免無窮迴圈
+MAX_EVENT_DETAIL_FETCHES = 60  # 單校最多下載幾篇事件詳細頁，避免行事曆事件很多時單校爬取時間失控
 MAX_NEWS_ARTICLES_TO_SCAN = 40  # 公告列表最多掃描幾篇標題找編班/導師關鍵字
 
 ROSTER_KEYWORDS = ["編班", "導師編配", "導師名單", "班級編制"]
@@ -72,8 +73,12 @@ class XoopsScraper(BaseSchoolScraper):
                         f"可能是頁面結構與預期不同或需要人工核對正確網址",
             )
 
+        event_links_list = sorted(event_links)
+        truncated = len(event_links_list) > MAX_EVENT_DETAIL_FETCHES
+        event_links_to_fetch = event_links_list[:MAX_EVENT_DETAIL_FETCHES]
+
         events: list[CalendarEvent] = []
-        for link in event_links:
+        for link in event_links_to_fetch:
             resp = self._safe_get(link)
             if resp is None:
                 continue
@@ -87,10 +92,13 @@ class XoopsScraper(BaseSchoolScraper):
                 message=f"找到 {len(event_links)} 個事件連結，但逐一解析內容都失敗",
             )
 
-        status = "success" if len(events) == len(event_links) else "partial"
+        status = "success" if len(events) == len(event_links_to_fetch) and not truncated else "partial"
+        message = f"共找到 {len(event_links)} 個事件連結，成功解析 {len(events)} 筆"
+        if truncated:
+            message += f"（已達單次上限 {MAX_EVENT_DETAIL_FETCHES} 筆，其餘 {len(event_links) - MAX_EVENT_DETAIL_FETCHES} 筆留待下次執行）"
         return ScrapeOutcome(
             target="calendar", status=status,
-            message=f"共找到 {len(event_links)} 個事件連結，成功解析 {len(events)} 筆",
+            message=message,
             calendar_events=events,
         )
 
