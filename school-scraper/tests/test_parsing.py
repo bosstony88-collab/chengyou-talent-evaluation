@@ -386,6 +386,20 @@ def test_masked_roster_class_number_formats():
           (3, 5, "王小明") in pairs and (1, 2, "李小華") in pairs, str(pairs))
 
 
+def test_mask_chars_exclude_ascii_o_and_zero():
+    print("test_mask_chars_exclude_ascii_o_and_zero")
+    # 第6次實跑證實半形O/0會大量誤判：慈文國小避難地圖PDF的教室編號「東001」被當成96個
+    # 遮罩姓名、大勇國小側欄的「南一Onebook」也中鏢。確認這類文字不再產生任何遮罩姓名。
+    from scrapers.pdf_utils import parse_masked_student_roster
+
+    noise = "南一Onebook 康軒電子書 東001 東102 西102 B1樓梯 避難空間 一年1班 陳○宇"
+    classes, unattributed = parse_masked_student_roster(noise)
+    as_dict = {(g, c): names for g, c, names in classes}
+    check("教室編號/產品名不再誤判，只留真遮罩姓名",
+          as_dict == {(1, 1): ["陳○宇"]} and unattributed == 0,
+          f"{as_dict} unattributed={unattributed}")
+
+
 def test_bare_class_header_with_default_grade():
     print("test_bare_class_header_with_default_grade")
     # 新生編班PDF常見「第1班」簡寫標頭（年級只寫在公告標題），需靠標題推斷的default_grade歸屬
@@ -490,6 +504,7 @@ if __name__ == "__main__":
     test_pdf_failure_does_not_poison_host()
     test_masked_student_roster_parsing()
     test_masked_roster_class_number_formats()
+    test_mask_chars_exclude_ascii_o_and_zero()
     test_bare_class_header_with_default_grade()
     test_student_upsert_privacy_guard()
     test_xoops_roster_with_masked_students()
