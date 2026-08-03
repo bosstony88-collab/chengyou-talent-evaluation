@@ -245,6 +245,7 @@ function renderContent() {
     <div class="tabs">
       <div class="tab ${currentTab === 'calendar' ? 'active' : ''}" data-tab="calendar">學期行事曆</div>
       <div class="tab ${currentTab === 'roster' ? 'active' : ''}" data-tab="roster">班級編制表</div>
+      <div class="tab ${currentTab === 'students' ? 'active' : ''}" data-tab="students">班級名單（遮罩）</div>
     </div>
     <div id="tabBody"></div>
   `;
@@ -256,8 +257,9 @@ function renderContent() {
 
 function renderTabBody(school) {
   const body = document.getElementById("tabBody");
+  const logTarget = currentTab === "calendar" ? "calendar" : "roster";
   const failedLogs = (school.last_scrape_log || []).filter(l =>
-    l.target === currentTab && (l.status === "failed" || l.status === "partial"));
+    l.target === logTarget && (l.status === "failed" || l.status === "partial"));
 
   let noticeHtml = "";
   if (failedLogs.length) {
@@ -287,6 +289,48 @@ function renderTabBody(school) {
         <thead><tr><th>日期</th><th>事項</th><th>學年度</th><th>來源</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
+    return;
+  }
+
+  if (currentTab === "students") {
+    const roster = school.student_roster || [];
+    const maskNote = `<div class="notice empty">姓名遮罩方式為各校官網公告原樣（例如「王○明」），本系統原樣保存、不還原、不另行蒐集完整姓名。</div>`;
+    if (!roster.length) {
+      body.innerHTML = noticeHtml + maskNote + `<div class="notice empty">目前尚無班級名單資料。多數學校僅在每學年度7-8月公告編班結果，
+        請等候下次排程更新或至官網人工查詢。</div>`;
+      return;
+    }
+    const byYearCls = {};
+    roster.forEach(s => {
+      const y = s.school_year;
+      const key = `${s.grade}-${s.class_number}`;
+      ((byYearCls[y] = byYearCls[y] || {})[key] = byYearCls[y][key] || []).push(s);
+    });
+    const years = Object.keys(byYearCls).sort().reverse();
+    const groups = years.map(y => {
+      const classKeys = Object.keys(byYearCls[y]).sort((a, b) => {
+        const [ga, ca] = a.split("-").map(Number);
+        const [gb, cb] = b.split("-").map(Number);
+        return ga - gb || ca - cb;
+      });
+      const rows = classKeys.map(k => {
+        const entries = byYearCls[y][k].sort((a, b) => a.entry_index - b.entry_index);
+        const [g, c] = k.split("-");
+        const names = entries.map(e => escapeHtml(e.masked_name)).join("、");
+        const src = entries[0].source_url
+          ? `<a class="source-link" href="${entries[0].source_url}" target="_blank" rel="noopener">來源 ↗</a>` : "-";
+        return `<tr><td style="white-space:nowrap;">${g}年${c}班</td><td>${entries.length}人</td><td>${names}</td><td>${src}</td></tr>`;
+      }).join("");
+      return `
+        <div class="year-group">
+          <h3>${y} 學年度</h3>
+          <table>
+            <thead><tr><th>班級</th><th>人數</th><th>名單（官網遮罩原樣）</th><th>來源</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }).join("");
+    body.innerHTML = noticeHtml + maskNote + groups;
     return;
   }
 

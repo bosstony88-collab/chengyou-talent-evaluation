@@ -19,11 +19,11 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from .base import BaseSchoolScraper, CalendarEvent, ClassAssignment, ScrapeOutcome
+from .base import BaseSchoolScraper, CalendarEvent, ClassAssignment, MaskedStudentEntry, ScrapeOutcome
 from .date_utils import parse_date_guess
 from .heuristics import extract_events_heuristic
 from .http_utils import polite_get
-from .pdf_utils import extract_pdf_text, parse_class_teacher_pairs
+from .pdf_utils import extract_pdf_text, parse_class_teacher_pairs, parse_masked_student_roster
 
 logger = logging.getLogger("school_scraper")
 
@@ -33,7 +33,7 @@ MAX_NEWS_ARTICLES_TO_SCAN = 40  # 公告列表最多掃描幾篇標題找編班/
 MAX_CATEGORY_PAGES_TO_TRY = 3  # 公告列表首頁掃不到文章連結時，往下一層分類頁最多試幾個
 MAX_PDF_ATTACHMENTS_PER_ARTICLE = 5  # 單篇公告最多下載幾個PDF附件，避免不相關附件拖慢單校處理時間
 
-ROSTER_KEYWORDS = ["編班", "導師編配", "導師名單", "班級編制"]
+ROSTER_KEYWORDS = ["編班", "導師編配", "導師名單", "班級編制", "新生名單"]
 # 有些學校（例如慈文國中、文昌國中）沒有tad_cal互動式行事曆，而是用公告夾帶PDF發布，
 # 需要靠這組關鍵字掃描公告標題找出來，當作 tad_cal 策略失敗時的備援
 CALENDAR_ANNOUNCEMENT_KEYWORDS = ["行事曆", "校歷", "行事簡曆", "行事日曆"]
@@ -219,7 +219,10 @@ class XoopsScraper(BaseSchoolScraper):
             )
 
         all_assignments: list[ClassAssignment] = []
+        all_student_entries: list[MaskedStudentEntry] = []
+        seen_roster_classes: set[tuple[str, int, int]] = set()  # 同班名單以最先掃到的公告（最新）為準
         parse_failures = []
+        unattributed_masked_total = 0
         for article_url, title in keyword_matches:
             resp = self._safe_get(article_url)
             if resp is None:
@@ -235,6 +238,7 @@ class XoopsScraper(BaseSchoolScraper):
                 school_year = m.group(1)
 
             pairs = parse_class_teacher_pairs(article_text)
+            texts_for_roster = [article_text]
 
             pdf_links = [
                 urljoin(article_url, a["href"])
@@ -249,6 +253,7 @@ class XoopsScraper(BaseSchoolScraper):
                     continue
                 pdf_text = extract_pdf_text(pdf_resp.content)
                 pairs.extend(parse_class_teacher_pairs(pdf_text))
+                texts_for_roster.append(pdf_text)
                 if not school_year:
                     m = SCHOOL_YEAR_RE.search(pdf_text)
                     if m:
@@ -270,19 +275,50 @@ class XoopsScraper(BaseSchoolScraper):
                     )
                 )
 
-        if not all_assignments:
+            # 遮罩學生名單：只收學校公告上本來就遮罩過的姓名（王○明），原樣保存
+            for text in texts_for_roster:
+                classes, unattributed = parse_masked_student_roster(text)
+                unattributed_masked_total += unattributed
+                for grade, class_number, names in classes:
+                    key = (school_year, grade, class_number)
+                    if key in seen_roster_classes:
+                        continue
+                    seen_roster_classes.add(key)
+                    for idx, name in enumerate(names):
+                        all_student_entries.append(
+                            MaskedStudentEntry(
+                                school_year=school_year,
+                                grade=grade,
+                                class_number=class_number,
+                                entry_index=idx,
+                                masked_name=name,
+                                source_url=article_url,
+                            )
+                        )
+
+        if not all_assignments and not all_student_entries:
             return ScrapeOutcome(
                 target="roster", status="partial",
-                message=f"找到 {len(keyword_matches)} 篇疑似編班公告，但都解析不出班級-導師配對，"
-                        f"可能是公告格式與預期的regex不符，需要人工檢查該公告原文/PDF格式",
+                message=f"找到 {len(keyword_matches)} 篇疑似編班公告，但都解析不出班級-導師配對或遮罩學生名單，"
+                        f"可能是公告格式與預期的regex不符，需要人工檢查該公告原文/PDF格式"
+                        + (f"（另有 {unattributed_masked_total} 個遮罩姓名因無法歸屬班級而未收）"
+                           if unattributed_masked_total else ""),
             )
 
         status = "success" if not parse_failures else "partial"
+        message = (
+            f"從 {len(keyword_matches)} 篇公告中解析出 {len(all_assignments)} 筆班級-導師資料、"
+            f"{len(all_student_entries)} 筆遮罩學生名單（{len(seen_roster_classes)} 個班級）"
+        )
+        if unattributed_masked_total:
+            message += f"，另有 {unattributed_masked_total} 個遮罩姓名因無法歸屬班級而未收"
+        if parse_failures:
+            message += f"，{len(parse_failures)} 篇解析失敗"
         return ScrapeOutcome(
             target="roster", status=status,
-            message=f"從 {len(keyword_matches)} 篇公告中解析出 {len(all_assignments)} 筆班級-導師資料"
-                    + (f"，{len(parse_failures)} 篇解析失敗" if parse_failures else ""),
+            message=message,
             class_assignments=all_assignments,
+            student_entries=all_student_entries,
         )
 
     # ---------- 行事曆備援：公告夾帶PDF（無tad_cal互動式行事曆的學校，例如慈文國中、文昌國中） ----------
