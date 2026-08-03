@@ -96,7 +96,7 @@ def test_xoops_calendar_scraper():
         scraper = XoopsScraper(school, session=MagicMock())
         outcome = scraper.scrape_calendar()
 
-    check("狀態為ssuccess", outcome.status == "success", outcome.message)
+    check("狀態為success", outcome.status == "success", outcome.message)
     check("找到2筆行事曆事件", len(outcome.calendar_events) == 2, str(outcome.calendar_events))
     titles = {e.title for e in outcome.calendar_events}
     check("標題正確", titles == {"校慶運動會", "期中考"}, str(titles))
@@ -142,7 +142,7 @@ def test_xoops_roster_scraper():
         scraper = XoopsScraper(school, session=MagicMock())
         outcome = scraper.scrape_roster()
 
-    check("狀態為ssuccess", outcome.status == "success", outcome.message)
+    check("狀態為success", outcome.status == "success", outcome.message)
     check("找到3筆班級-導師資料", len(outcome.class_assignments) == 3, str(outcome.class_assignments))
     check("學年度正確解析", all(a.school_year == "113" for a in outcome.class_assignments))
     names = {(a.grade, a.class_number, a.teacher_name) for a in outcome.class_assignments}
@@ -224,7 +224,7 @@ def test_roster_index_php_fallback():
         scraper = XoopsScraper(school, session=MagicMock())
         outcome = scraper.scrape_roster()
 
-    check("index.php備援後狀態為ssuccess", outcome.status == "success", outcome.message)
+    check("index.php備援後狀態為success", outcome.status == "success", outcome.message)
     check("解析出1筆", len(outcome.class_assignments) == 1, str(outcome.class_assignments))
 
 
@@ -449,7 +449,7 @@ def test_xoops_roster_with_masked_students():
         scraper = XoopsScraper(school, session=MagicMock())
         outcome = scraper.scrape_roster()
 
-    check("狀態為ssuccess", outcome.status == "success", outcome.message)
+    check("狀態為success", outcome.status == "success", outcome.message)
     check("導師資料照舊解析", len(outcome.class_assignments) == 2, str(outcome.class_assignments))
     check("遮罩學生名單共5筆", len(outcome.student_entries) == 5, str(len(outcome.student_entries)))
     cls11 = [e.masked_name for e in outcome.student_entries if e.class_number == 1]
