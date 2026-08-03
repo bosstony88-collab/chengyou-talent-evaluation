@@ -16,9 +16,36 @@ logger = logging.getLogger("school_scraper")
 
 _CHINESE_GRADE_MAP = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
 
-# 例如："一年1班 導師 王小明" / "1年01班：王小明" / "三年5班 王小明老師"
+# 全形數字/符號正規化：不少學校公告用「１年２班」全形寫法，解析前先轉半形
+_FULLWIDTH_TRANS = str.maketrans("０１２３４５６７８９：（）", "0123456789:()")
+
+# 班號的四種常見寫法（第4次實跑發現慈文國小96個遮罩姓名全因班號格式對不上而無法歸屬）：
+#   阿拉伯數字「1班」、中文數字「一班」「十二班」、天干「甲乙丙班」、傳統班名「忠孝仁愛信義和平班」
+# 天干/傳統班名依台灣慣例順序對映為班號（甲=1、忠=1...），來源連結保留供人工核對
+_CLASS_LABEL_MAP = {
+    "甲": 1, "乙": 2, "丙": 3, "丁": 4, "戊": 5,
+    "忠": 1, "孝": 2, "仁": 3, "愛": 4, "信": 5, "義": 6, "和": 7, "平": 8,
+}
+_CLASS_NUM_ALT = r"[0-9]{1,2}|[一二三四五六七八九十]{1,3}|[甲乙丙丁戊忠孝仁愛信義和平]"
+
+
+def _parse_class_number(raw: str) -> int | None:
+    if raw.isdigit():
+        return int(raw)
+    if raw in _CLASS_LABEL_MAP:
+        return _CLASS_LABEL_MAP[raw]
+    # 中文數字（一 ~ 三十九）："十"=10、"十二"=12、"二十"=20、"二十一"=21
+    if "十" in raw:
+        tens_part, _, ones_part = raw.partition("十")
+        tens = _CHINESE_GRADE_MAP.get(tens_part, 1) if tens_part else 1
+        ones = _CHINESE_GRADE_MAP.get(ones_part, 0) if ones_part else 0
+        return tens * 10 + ones
+    return _CHINESE_GRADE_MAP.get(raw)
+
+
+# 例如："一年1班 導師 王小明" / "1年01班：王小明" / "三年五班 王小明老師" / "２年忠班 王小明"
 _CLASS_TEACHER_PATTERN = re.compile(
-    r"([一二三四五六七八九1-9])\s*年[級]?\s*([0-9]{1,2})\s*班"
+    rf"([一二三四五六七八九1-9])\s*年[級]?\s*({_CLASS_NUM_ALT})\s*班"
     r"[\s:：]*(?:導師)?[\s:：]*([一-龥]{2,4}?)(?:老師|導師)?"
     r"(?=[\s　，。、]|$|[一二三四五六七八九0-9]{1,2}\s*年)"
 )
@@ -34,8 +61,8 @@ _MASKED_NAME_RE = re.compile(
     rf"(?<![一-龥])[一-龥]{{1,2}}[{re.escape(MASK_CHARS)}]{{1,2}}[一-龥]?(?![一-龥])"
 )
 
-# 班級標頭（用於把公告文字切成逐班區段）："一年1班" / "3年12班" / "七年級5班"
-_CLASS_HEADER_RE = re.compile(r"([一二三四五六七八九1-9])\s*年[級]?\s*([0-9]{1,2})\s*班")
+# 班級標頭（用於把公告文字切成逐班區段）："一年1班" / "3年12班" / "一年一班" / "三年忠班"
+_CLASS_HEADER_RE = re.compile(rf"([一二三四五六七八九1-9])\s*年[級]?\s*({_CLASS_NUM_ALT})\s*班")
 
 
 def contains_mask(name: str) -> bool:
@@ -57,6 +84,7 @@ def extract_pdf_text(pdf_bytes: bytes) -> str:
 
 def parse_class_teacher_pairs(text: str) -> list[tuple[int, int, str]]:
     """回傳 [(grade, class_number, teacher_name), ...]，是 best-effort 結果。"""
+    text = text.translate(_FULLWIDTH_TRANS)
     results = []
     for match in _CLASS_TEACHER_PATTERN.finditer(text):
         grade_raw, class_raw, teacher = match.groups()
@@ -65,9 +93,8 @@ def parse_class_teacher_pairs(text: str) -> list[tuple[int, int, str]]:
             grade = int(grade_raw)
         if grade is None:
             continue
-        try:
-            class_number = int(class_raw)
-        except ValueError:
+        class_number = _parse_class_number(class_raw)
+        if class_number is None:
             continue
         # 過濾明顯不合理的姓名（例如把「編班」「作業」這種詞誤抓進來）
         if teacher in ("編班", "作業", "公告", "結果", "編配"):
@@ -79,10 +106,11 @@ def parse_class_teacher_pairs(text: str) -> list[tuple[int, int, str]]:
 def parse_masked_student_roster(text: str) -> tuple[list[tuple[int, int, list[str]]], int]:
     """從公告/PDF文字解析「學校已遮罩」的班級學生名單。
 
-    以班級標頭（一年1班）把文字切成逐班區段，各區段內比對遮罩姓名。
+    以班級標頭（一年1班/一年一班/三年忠班等格式）把文字切成逐班區段，各區段內比對遮罩姓名。
     回傳 ([(grade, class_number, [遮罩姓名...]), ...], 無法歸屬到任何班級的遮罩姓名數)。
     同一班出現多個標頭（例如導師行與名單表各一次）時會合併名單並保持出現順序。
     """
+    text = text.translate(_FULLWIDTH_TRANS)
     headers = list(_CLASS_HEADER_RE.finditer(text))
     if not headers:
         return [], len(_MASKED_NAME_RE.findall(text))
@@ -96,9 +124,8 @@ def parse_masked_student_roster(text: str) -> tuple[list[tuple[int, int, list[st
         grade = _CHINESE_GRADE_MAP.get(grade_raw)
         if grade is None and grade_raw.isdigit():
             grade = int(grade_raw)
-        try:
-            class_number = int(class_raw)
-        except ValueError:
+        class_number = _parse_class_number(class_raw)
+        if class_number is None:
             continue
         if grade is None:
             continue

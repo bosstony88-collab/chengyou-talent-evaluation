@@ -96,7 +96,7 @@ def test_xoops_calendar_scraper():
         scraper = XoopsScraper(school, session=MagicMock())
         outcome = scraper.scrape_calendar()
 
-    check("狀態為success", outcome.status == "success", outcome.message)
+    check("狀態為ssuccess", outcome.status == "success", outcome.message)
     check("找到2筆行事曆事件", len(outcome.calendar_events) == 2, str(outcome.calendar_events))
     titles = {e.title for e in outcome.calendar_events}
     check("標題正確", titles == {"校慶運動會", "期中考"}, str(titles))
@@ -142,7 +142,7 @@ def test_xoops_roster_scraper():
         scraper = XoopsScraper(school, session=MagicMock())
         outcome = scraper.scrape_roster()
 
-    check("狀態為success", outcome.status == "success", outcome.message)
+    check("狀態為ssuccess", outcome.status == "success", outcome.message)
     check("找到3筆班級-導師資料", len(outcome.class_assignments) == 3, str(outcome.class_assignments))
     check("學年度正確解析", all(a.school_year == "113" for a in outcome.class_assignments))
     names = {(a.grade, a.class_number, a.teacher_name) for a in outcome.class_assignments}
@@ -224,14 +224,13 @@ def test_roster_index_php_fallback():
         scraper = XoopsScraper(school, session=MagicMock())
         outcome = scraper.scrape_roster()
 
-    check("index.php備援後狀態為success", outcome.status == "success", outcome.message)
+    check("index.php備援後狀態為ssuccess", outcome.status == "success", outcome.message)
     check("解析出1筆", len(outcome.class_assignments) == 1, str(outcome.class_assignments))
 
 
 def test_calendar_pdf_announcement_fallback():
     print("test_calendar_pdf_announcement_fallback")
     # 模擬慈文國中/文昌國中的狀況：沒有tad_cal，行事曆是公告夾帶純文字內容（不含PDF二進位，簡化測試）
-    tad_cal_empty_html = "<html><body><p>本模組沒有任何 event.php 連結</p></body></html>"
     news_list_html = """
     <html><body>
       <a href="index.php?nsn=501">115學年度上學期行事曆</a>
@@ -361,6 +360,32 @@ def test_masked_student_roster_parsing():
     check("contains_mask 判斷正確", contains_mask("王○明") and not contains_mask("王小明"))
 
 
+def test_masked_roster_class_number_formats():
+    print("test_masked_roster_class_number_formats")
+    # 第4次實跑發現慈文國小96個遮罩姓名全數「無法歸屬班級」——班號寫法是中文數字/全形，
+    # 不是原本regex唯一支援的半形阿拉伯數字。驗證四種常見班號格式都能歸屬。
+    from scrapers.pdf_utils import parse_masked_student_roster, parse_class_teacher_pairs
+
+    text = (
+        "114學年度編班結果 "
+        "一年一班 陳○宇 林○彤 "          # 中文數字班號
+        "一年十二班 張○豪 "               # 中文數字十位班號
+        "２年３班 黃○庭 "                 # 全形數字
+        "三年忠班 吳○蓁 "                 # 傳統班名
+    )
+    classes, unattributed = parse_masked_student_roster(text)
+    as_dict = {(g, c): names for g, c, names in classes}
+    check("中文數字班號可歸屬", as_dict.get((1, 1)) == ["陳○宇", "林○彤"], str(as_dict))
+    check("中文數字十位班號(十二)正確轉12", as_dict.get((1, 12)) == ["張○豪"], str(as_dict))
+    check("全形數字班號可歸屬", as_dict.get((2, 3)) == ["黃○庭"], str(as_dict))
+    check("傳統班名(忠=1)可歸屬", as_dict.get((3, 1)) == ["吳○蓁"], str(as_dict))
+    check("四種格式下無漏歸屬", unattributed == 0, str(unattributed))
+
+    pairs = parse_class_teacher_pairs("三年五班 導師 王小明　１年２班 導師 李小華")
+    check("導師解析也支援中文數字/全形班號",
+          (3, 5, "王小明") in pairs and (1, 2, "李小華") in pairs, str(pairs))
+
+
 def test_student_upsert_privacy_guard():
     print("test_student_upsert_privacy_guard")
     import sqlite3
@@ -424,7 +449,7 @@ def test_xoops_roster_with_masked_students():
         scraper = XoopsScraper(school, session=MagicMock())
         outcome = scraper.scrape_roster()
 
-    check("狀態為success", outcome.status == "success", outcome.message)
+    check("狀態為ssuccess", outcome.status == "success", outcome.message)
     check("導師資料照舊解析", len(outcome.class_assignments) == 2, str(outcome.class_assignments))
     check("遮罩學生名單共5筆", len(outcome.student_entries) == 5, str(len(outcome.student_entries)))
     cls11 = [e.masked_name for e in outcome.student_entries if e.class_number == 1]
@@ -444,6 +469,7 @@ if __name__ == "__main__":
     test_dead_host_circuit_breaker()
     test_pdf_failure_does_not_poison_host()
     test_masked_student_roster_parsing()
+    test_masked_roster_class_number_formats()
     test_student_upsert_privacy_guard()
     test_xoops_roster_with_masked_students()
     print(f"\n{PASS} passed, {FAIL} failed")
