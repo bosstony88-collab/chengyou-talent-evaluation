@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>程優教育科技｜學校公開資訊查詢系統</title>
+<style>
+  :root {
+    --navy: #0b2545;
+    --gold: #c9a24b;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1c2b3a;
+    --muted: #6b7a8d;
+    --ok: #2e7d46;
+    --warn: #b8860b;
+    --fail: #b3261e;
+    --border: #e1e6ec;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: linear-gradient(135deg, var(--navy), #143a63);
+    color: #fff;
+    padding: 28px 24px;
+  }
+  header h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 0.5px; }
+  header p { margin: 0; color: #cfe0f2; font-size: 13px; }
+  .meta-bar {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 10px 24px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .layout {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 800px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .search-box {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .filter-chip-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--muted);
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .chip.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .school-list { list-style: none; margin: 0; padding: 0; max-height: 70vh; overflow-y: auto; }
+  .school-list li {
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .school-list li:hover { background: #f0f3f8; }
+  .school-list li.active { background: var(--navy); color: #fff; }
+  .school-list .district-tag { font-size: 11px; color: var(--muted); }
+  .school-list li.active .district-tag { color: #cfe0f2; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .status-dot.ok { background: var(--ok); }
+  .status-dot.warn { background: var(--warn); }
+  .status-dot.fail { background: var(--fail); }
+  .status-dot.none { background: #c7cfda; }
+
+  .content h2 { margin-top: 0; font-size: 20px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .tab {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+  }
+  .tab.active { color: var(--navy); border-bottom-color: var(--gold); font-weight: 600; }
+
+  .notice {
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  .notice.warn { background: #fdf3dc; color: #7a5b00; border: 1px solid #f0dfa8; }
+  .notice.fail { background: #fbe9e7; color: #8c2b23; border: 1px solid #f0c4bf; }
+  .notice.empty { background: #eef1f5; color: var(--muted); border: 1px solid var(--border); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
+  tr:hover td { background: #f8fafc; }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #eef1f5;
+    color: var(--muted);
+  }
+  .badge.carried { background: #fdf3dc; color: #7a5b00; }
+  a.source-link { color: var(--navy); text-decoration: none; font-size: 12px; }
+  a.source-link:hover { text-decoration: underline; }
+
+  .year-group { margin-bottom: 22px; }
+  .year-group h3 { font-size: 14px; margin: 0 0 8px; color: var(--navy); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>學校公開資訊查詢系統</h1>
+  <p>程優教育科技 · 桃園21校行事曆／班級編制表整合查詢（資料來源皆為各校官網公開發布資訊，僅供內部行政排程參考）</p>
+</header>
+<div class="meta-bar" id="metaBar">資料載入中…</div>
+
+<div class="layout">
+  <aside class="panel">
+    <input class="search-box" id="searchInput" type="text" placeholder="搜尋學校名稱…">
+    <div class="filter-chip-row" id="levelFilter">
+      <span class="chip active" data-level="all">全部</span>
+      <span class="chip" data-level="junior_high">國中</span>
+      <span class="chip" data-level="elementary">國小</span>
+    </div>
+    <ul class="school-list" id="schoolList"></ul>
+  </aside>
+
+  <main class="panel content" id="content">
+    <p class="subtitle">請從左側選擇一所學校。</p>
+  </main>
+</div>
+
+<script>
+let DATA = null;
+let currentSchoolId = null;
+let currentTab = "calendar";
+let levelFilter = "all";
+
+fetch("school-scraper/data/export/data.json")
+  .then(r => {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  })
+  .then(data => {
+    DATA = data;
+    document.getElementById("metaBar").textContent =
+      `資料最後更新：${formatDateTime(data.generated_at)}　·　共 ${data.school_count} 所學校`;
+    renderSchoolList();
+    if (data.schools.length) selectSchool(data.schools[0].id);
+  })
+  .catch(err => {
+    document.getElementById("metaBar").textContent = "資料載入失敗";
+    document.getElementById("content").innerHTML =
+      `<div class="notice fail">找不到 school-scraper/data/export/data.json（${err.message}）。
+       這個檔案由 GitHub Actions 排程爬蟲執行後自動產生，請確認 workflow 是否已成功跑過一次，
+       或確認這個頁面部署時有一併帶上 school-scraper/data/export/ 目錄。</div>`;
+  });
+
+function schoolStatus(school) {
+  const logs = school.last_scrape_log || [];
+  if (!logs.length) return "none";
+  if (logs.some(l => l.status === "success")) return "ok";
+  if (logs.some(l => l.status === "partial")) return "warn";
+  return "fail";
+}
+
+function renderSchoolList() {
+  const q = document.getElementById("searchInput").value.trim();
+  const ul = document.getElementById("schoolList");
+  ul.innerHTML = "";
+  DATA.schools
+    .filter(s => levelFilter === "all" || s.level === levelFilter)
+    .filter(s => !q || s.name.includes(q) || s.short_name.includes(q))
+    .forEach(s => {
+      const li = document.createElement("li");
+      li.className = s.id === currentSchoolId ? "active" : "";
+      li.onclick = () => selectSchool(s.id);
+      const status = schoolStatus(s);
+      li.innerHTML = `
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span class="status-dot ${status}"></span>${s.short_name}
+        </span>
+        <span class="district-tag">${s.district}</span>`;
+      ul.appendChild(li);
+    });
+}
+
+document.getElementById("searchInput").addEventListener("input", renderSchoolList);
+document.getElementById("levelFilter").addEventListener("click", e => {
+  if (!e.target.dataset.level) return;
+  levelFilter = e.target.dataset.level;
+  [...document.getElementById("levelFilter").children].forEach(c => c.classList.remove("active"));
+  e.target.classList.add("active");
+  renderSchoolList();
+});
+
+function selectSchool(id) {
+  currentSchoolId = id;
+  renderSchoolList();
+  renderContent();
+}
+
+function renderContent() {
+  const school = DATA.schools.find(s => s.id === currentSchoolId);
+  const content = document.getElementById("content");
+  if (!school) { content.innerHTML = "<p class='subtitle'>請從左側選擇一所學校。</p>"; return; }
+
+  const levelLabel = school.level === "junior_high" ? "國中" : "國小";
+  content.innerHTML = `
+    <h2>${school.name}</h2>
+    <p class="subtitle">${levelLabel}　·　${school.district}　·
+       <a class="source-link" href="${school.base_url}" target="_blank" rel="noopener">官方網站 ↗</a></p>
+    <div class="tabs">
+      <div class="tab ${currentTab === 'calendar' ? 'active' : ''}" data-tab="calendar">學期行事曆</div>
+      <div class="tab ${currentTab === 'roster' ? 'active' : ''}" data-tab="roster">班級編制表</div>
+    </div>
+    <div id="tabBody"></div>
+  `;
+  content.querySelectorAll(".tab").forEach(t => {
+    t.onclick = () => { currentTab = t.dataset.tab; renderContent(); };
+  });
+  renderTabBody(school);
+}
+
+function renderTabBody(school) {
+  const body = document.getElementById("tabBody");
+  const failedLogs = (school.last_scrape_log || []).filter(l =>
+    l.target === currentTab && (l.status === "failed" || l.status === "partial"));
+
+  let noticeHtml = "";
+  if (failedLogs.length) {
+    const l = failedLogs[0];
+    const cls = l.status === "failed" ? "fail" : "warn";
+    noticeHtml = `<div class="notice ${cls}">
+      ⚠ 最近一次爬取狀態：${l.status}　·　${escapeHtml(l.message || "")}
+      （${formatDateTime(l.run_at)}）</div>`;
+  }
+
+  if (currentTab === "calendar") {
+    const events = school.calendar_events || [];
+    if (!events.length) {
+      body.innerHTML = noticeHtml + `<div class="notice empty">目前尚無行事曆資料，請等候下次排程更新，或至官網人工查詢：
+        <a class="source-link" href="${school.base_url}" target="_blank" rel="noopener">${school.base_url}</a></div>`;
+      return;
+    }
+    const rows = events.map(e => `
+      <tr>
+        <td>${e.start_date || "（日期未解析）"}</td>
+        <td>${escapeHtml(e.title)}</td>
+        <td>${e.school_year ? e.school_year + "學年度" : "-"}</td>
+        <td><a class="source-link" href="${e.source_url}" target="_blank" rel="noopener">來源 ↗</a></td>
+      </tr>`).join("");
+    body.innerHTML = noticeHtml + `
+      <table>
+        <thead><tr><th>日期</th><th>事項</th><th>學年度</th><th>來源</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    return;
+  }
+
+  // roster tab
+  const assignments = school.class_teacher_assignments || [];
+  if (!assignments.length) {
+    body.innerHTML = noticeHtml + `<div class="notice empty">目前尚無班級編制資料。多數學校僅在每學年度7-8月公告新編班結果，
+      非公告期間本來就可能查無最新資料；也可能是該公告尚未被爬蟲抓到，請等候下次排程或至官網人工查詢。</div>`;
+    return;
+  }
+  const byYear = {};
+  assignments.forEach(a => {
+    (byYear[a.school_year] = byYear[a.school_year] || []).push(a);
+  });
+  const years = Object.keys(byYear).sort().reverse();
+  const groups = years.map(y => {
+    const rows = byYear[y]
+      .sort((a, b) => a.grade - b.grade || a.class_number - b.class_number)
+      .map(a => `
+        <tr>
+          <td>${a.grade}年${a.class_number}班</td>
+          <td>${escapeHtml(a.teacher_name || "（未取得）")}</td>
+          <td>${a.is_carried_over ? '<span class="badge carried">延續前次資料推算</span>' : '<span class="badge">當學年度公告</span>'}</td>
+          <td>${a.source_url ? `<a class="source-link" href="${a.source_url}" target="_blank" rel="noopener">來源 ↗</a>` : "-"}</td>
+        </tr>`).join("");
+    return `
+      <div class="year-group">
+        <h3>${y} 學年度</h3>
+        <table>
+          <thead><tr><th>班級</th><th>導師</th><th>資料性質</th><th>來源</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }).join("");
+  body.innerHTML = noticeHtml + groups;
+}
+
+function formatDateTime(iso) {
+  if (!iso) return "-";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  } catch { return iso; }
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+</script>
+
+</body>
+</html>

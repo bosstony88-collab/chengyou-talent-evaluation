@@ -1,0 +1,73 @@
+name: Scrape School Info
+
+# 這個 workflow 會在 GitHub Actions runner 上執行（有完整對外網路權限，跟開發環境的
+# 網路限制無關），定期把桃園21校官網上公開發布的行事曆、班級編制表抓下來，更新進
+# school-scraper/data/schools.db，並匯出查詢用的 JSON 供前端讀取。
+
+on:
+  schedule:
+    # 每週一 台北時間 04:00（= 週日 UTC 20:00），避開學校網站白天流量
+    - cron: '0 20 * * 0'
+  workflow_dispatch:
+    inputs:
+      school:
+        description: '只跑單一學校 id（見 school-scraper/config/schools.json，留空 = 全部21校）'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: school-scraper
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright Chromium (NSS學校JS渲染備援，失敗不影響整體流程)
+        working-directory: school-scraper
+        continue-on-error: true
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Run scraper
+        working-directory: school-scraper
+        run: |
+          if [ -n "${{ github.event.inputs.school }}" ]; then
+            python main.py --school "${{ github.event.inputs.school }}"
+          else
+            python main.py
+          fi
+
+      - name: Run offline parsing self-tests
+        working-directory: school-scraper
+        run: python tests/test_parsing.py
+
+      - name: Export query JSON for frontend
+        working-directory: school-scraper
+        run: python scripts/export_json.py
+
+      - name: Commit data changes if any
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add school-scraper/data/
+          if git diff --cached --quiet; then
+            echo "沒有資料變更，略過 commit"
+          else
+            git commit -m "chore: 自動更新學校行事曆/班級編制資料 [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
