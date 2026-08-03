@@ -23,7 +23,13 @@ from .base import BaseSchoolScraper, CalendarEvent, ClassAssignment, MaskedStude
 from .date_utils import parse_date_guess
 from .heuristics import extract_events_heuristic
 from .http_utils import polite_get
-from .pdf_utils import extract_pdf_text, parse_class_teacher_pairs, parse_masked_student_roster
+from .pdf_utils import (
+    extract_pdf_text,
+    first_masked_context,
+    parse_class_teacher_pairs,
+    parse_masked_student_roster,
+    parse_single_grade_from_title,
+)
 
 logger = logging.getLogger("school_scraper")
 
@@ -275,10 +281,20 @@ class XoopsScraper(BaseSchoolScraper):
                     )
                 )
 
-            # 遮罩學生名單：只收學校公告上本來就遮罩過的姓名（王○明），原樣保存
+            # 遮罩學生名單：只收學校公告上本來就遮罩過的姓名（王○明），原樣保存。
+            # 「第N班」簡寫式標頭需要年級，從公告標題推斷（僅標題明確單一年級/新生時才用）
+            default_grade = parse_single_grade_from_title(title, self.school.get("level"))
+            diagnostic_logged = False
             for text in texts_for_roster:
-                classes, unattributed = parse_masked_student_roster(text)
+                classes, unattributed = parse_masked_student_roster(text, default_grade=default_grade)
                 unattributed_masked_total += unattributed
+                if unattributed and not classes and not diagnostic_logged:
+                    # 名單完全無法歸屬時記錄前文樣本，供下次依真實格式修正解析規則
+                    # （樣本中的姓名本來就是學校遮罩過的版本）
+                    snippet = first_masked_context(text)
+                    if snippet:
+                        logger.info("[%s] 未歸屬遮罩名單的前文樣本: %r", self.school["id"], snippet)
+                        diagnostic_logged = True
                 for grade, class_number, names in classes:
                     key = (school_year, grade, class_number)
                     if key in seen_roster_classes:

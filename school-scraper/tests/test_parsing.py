@@ -386,6 +386,26 @@ def test_masked_roster_class_number_formats():
           (3, 5, "王小明") in pairs and (1, 2, "李小華") in pairs, str(pairs))
 
 
+def test_bare_class_header_with_default_grade():
+    print("test_bare_class_header_with_default_grade")
+    # 新生編班PDF常見「第1班」簡寫標頭（年級只寫在公告標題），需靠標題推斷的default_grade歸屬
+    from scrapers.pdf_utils import parse_masked_student_roster, parse_single_grade_from_title
+
+    text = "第1班 陳○宇 林○彤 第2班 張○豪"
+    classes, _ = parse_masked_student_roster(text, default_grade=1)
+    as_dict = {(g, c): names for g, c, names in classes}
+    check("第N班簡寫式＋default_grade可歸屬",
+          as_dict.get((1, 1)) == ["陳○宇", "林○彤"] and as_dict.get((1, 2)) == ["張○豪"], str(as_dict))
+
+    classes_none, _ = parse_masked_student_roster(text, default_grade=None)
+    check("沒有default_grade時第N班不冒險歸屬", classes_none == [], str(classes_none))
+
+    check("標題單一年級推斷", parse_single_grade_from_title("114學年度一年級新生編班結果") == 1)
+    check("標題多年級時不推斷", parse_single_grade_from_title("新生暨三、五年級編班") is None)
+    check("標題僅新生時依學制推斷(國小=1)", parse_single_grade_from_title("114學年度新生編班公告", "elementary") == 1)
+    check("標題僅新生時依學制推斷(國中=7)", parse_single_grade_from_title("114學年度新生編班公告", "junior_high") == 7)
+
+
 def test_student_upsert_privacy_guard():
     print("test_student_upsert_privacy_guard")
     import sqlite3
@@ -470,6 +490,7 @@ if __name__ == "__main__":
     test_pdf_failure_does_not_poison_host()
     test_masked_student_roster_parsing()
     test_masked_roster_class_number_formats()
+    test_bare_class_header_with_default_grade()
     test_student_upsert_privacy_guard()
     test_xoops_roster_with_masked_students()
     print(f"\n{PASS} passed, {FAIL} failed")

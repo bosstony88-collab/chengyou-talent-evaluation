@@ -69,5 +69,8 @@ jobs:
             echo "沒有資料變更，略過 commit"
           else
             git commit -m "chore: 自動更新學校行事曆/班級編制資料 [skip ci]"
+            # 爬蟲執行的十幾分鐘內若有其他commit推上同分支，直接push會被拒(non-fast-forward)，
+            # 先rebase到最新再推（資料commit只動school-scraper/data/，rebase不會有衝突）
+            git pull --rebase origin ${{ github.ref_name }}
             git push origin HEAD:${{ github.ref_name }}
           fi
