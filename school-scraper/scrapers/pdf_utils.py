@@ -61,12 +61,54 @@ _MASKED_NAME_RE = re.compile(
     rf"(?<![一-龥])[一-龥]{{1,2}}[{re.escape(MASK_CHARS)}]{{1,2}}[一-龥]?(?![一-龥])"
 )
 
-# 班級標頭（用於把公告文字切成逐班區段）："一年1班" / "3年12班" / "一年一班" / "三年忠班"
-_CLASS_HEADER_RE = re.compile(rf"([一二三四五六七八九1-9])\s*年[級]?\s*({_CLASS_NUM_ALT})\s*班")
+# 班級標頭（用於把公告文字切成逐班區段）：
+#   完整式 "一年1班" / "3年12班" / "一年一班" / "三年忠班"
+#   簡寫式 "第1班"（新生編班PDF常見，年級只寫在公告標題），需搭配 default_grade 才能歸屬
+_CLASS_HEADER_RE = re.compile(
+    rf"([一二三四五六七八九1-9])\s*年[級]?\s*({_CLASS_NUM_ALT})\s*班"
+    rf"|第\s*({_CLASS_NUM_ALT})\s*班"
+)
+
+# 支援列舉式「三、五年級」：捕捉「年級」前以頓號/逗號串起的整串年級數字
+_GRADE_LIST_TITLE_RE = re.compile(
+    r"((?:[一二三四五六七八九1-9]\s*[、,，]\s*)*[一二三四五六七八九1-9])\s*年\s*級"
+)
+
+
+def parse_single_grade_from_title(title: str, level: str | None = None) -> int | None:
+    """從公告標題推斷「唯一」年級（例如「一年級新生編班結果」→1）。
+
+    標題提到多個年級（「新生暨三、五年級」）時回傳 None，避免把名單錯誤歸到單一年級；
+    標題只提「新生」時依學制推斷（國小=1年級、國中=7年級）。"""
+    grades = set()
+    for m in _GRADE_LIST_TITLE_RE.finditer(title):
+        for token in re.split(r"[、,，\s]+", m.group(1)):
+            if not token:
+                continue
+            g = _CHINESE_GRADE_MAP.get(token)
+            if g is None and token.isdigit():
+                g = int(token)
+            if g:
+                grades.add(g)
+    if len(grades) == 1:
+        return grades.pop()
+    if not grades and "新生" in title:
+        return 7 if level == "junior_high" else 1
+    return None
 
 
 def contains_mask(name: str) -> bool:
     return any(c in MASK_CHARS for c in name)
+
+
+def first_masked_context(text: str, before: int = 120, after: int = 40) -> str | None:
+    """回傳第一個遮罩姓名前後的文字樣本，供診斷「名單為何無法歸屬班級」用。
+    樣本中的姓名本來就是學校遮罩過的版本，記錄到log不會外洩完整個資。"""
+    m = _MASKED_NAME_RE.search(text.translate(_FULLWIDTH_TRANS))
+    if not m:
+        return None
+    normalized = text.translate(_FULLWIDTH_TRANS)
+    return normalized[max(0, m.start() - before): m.end() + after]
 
 
 def extract_pdf_text(pdf_bytes: bytes) -> str:
@@ -103,10 +145,13 @@ def parse_class_teacher_pairs(text: str) -> list[tuple[int, int, str]]:
     return results
 
 
-def parse_masked_student_roster(text: str) -> tuple[list[tuple[int, int, list[str]]], int]:
+def parse_masked_student_roster(
+    text: str, default_grade: int | None = None
+) -> tuple[list[tuple[int, int, list[str]]], int]:
     """從公告/PDF文字解析「學校已遮罩」的班級學生名單。
 
-    以班級標頭（一年1班/一年一班/三年忠班等格式）把文字切成逐班區段，各區段內比對遮罩姓名。
+    以班級標頭（一年1班/一年一班/三年忠班/第1班等格式）把文字切成逐班區段，各區段內比對遮罩姓名。
+    「第N班」簡寫式標頭沒有年級資訊，只有在呼叫端提供 default_grade（通常由公告標題推斷）時才歸屬。
     回傳 ([(grade, class_number, [遮罩姓名...]), ...], 無法歸屬到任何班級的遮罩姓名數)。
     同一班出現多個標頭（例如導師行與名單表各一次）時會合併名單並保持出現順序。
     """
@@ -120,14 +165,19 @@ def parse_masked_student_roster(text: str) -> tuple[list[tuple[int, int, list[st
     merged: dict[tuple[int, int], list[str]] = {}
     order: list[tuple[int, int]] = []
     for i, m in enumerate(headers):
-        grade_raw, class_raw = m.groups()
-        grade = _CHINESE_GRADE_MAP.get(grade_raw)
-        if grade is None and grade_raw.isdigit():
-            grade = int(grade_raw)
-        class_number = _parse_class_number(class_raw)
-        if class_number is None:
-            continue
-        if grade is None:
+        grade_raw, class_raw, bare_class_raw = m.groups()
+        if bare_class_raw is not None:
+            # 「第N班」簡寫式：年級只能靠公告標題推斷，推不出來就不冒險歸屬
+            if default_grade is None:
+                continue
+            grade = default_grade
+            class_number = _parse_class_number(bare_class_raw)
+        else:
+            grade = _CHINESE_GRADE_MAP.get(grade_raw)
+            if grade is None and grade_raw.isdigit():
+                grade = int(grade_raw)
+            class_number = _parse_class_number(class_raw)
+        if class_number is None or grade is None:
             continue
 
         seg_end = headers[i + 1].start() if i + 1 < len(headers) else len(text)
