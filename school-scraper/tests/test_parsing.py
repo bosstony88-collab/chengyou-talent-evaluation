@@ -337,6 +337,102 @@ def test_pdf_failure_does_not_poison_host():
     check("PDF失敗不會把主機標記為死站", "example.tyc.edu.tw" not in scraper._dead_hosts, scraper._dead_hosts)
 
 
+def test_masked_student_roster_parsing():
+    print("test_masked_student_roster_parsing")
+    from scrapers.pdf_utils import parse_masked_student_roster, contains_mask
+
+    text = (
+        "114學年度一年級新生編班結果 "
+        "一年1班 導師 王小明 1 陳○宇 2 林○彤 3 歐陽○安 4 李○ "
+        "一年2班 導師 李小華 1 張○豪 2 黃Ｏ庭 "
+        "完整姓名不該被抓：許功蓋 陳大文 "
+    )
+    classes, unattributed = parse_masked_student_roster(text)
+    as_dict = {(g, c): names for g, c, names in classes}
+
+    check("切出2個班級", len(as_dict) == 2, str(as_dict))
+    check("1班名單正確（含複姓、含2字名）",
+          as_dict.get((1, 1)) == ["陳○宇", "林○彤", "歐陽○安", "李○"], str(as_dict.get((1, 1))))
+    check("2班名單正確（含全形Ｏ遮罩）",
+          as_dict.get((1, 2)) == ["張○豪", "黃Ｏ庭"], str(as_dict.get((1, 2))))
+    check("完整姓名（無遮罩）不會被抓進名單",
+          all(not any("許" in n or "大文" in n for n in names) for names in as_dict.values()))
+    check("班級標頭前沒有遮罩姓名", unattributed == 0, str(unattributed))
+    check("contains_mask 判斷正確", contains_mask("王○明") and not contains_mask("王小明"))
+
+
+def test_student_upsert_privacy_guard():
+    print("test_student_upsert_privacy_guard")
+    import sqlite3
+    from db.store import upsert_student_entries
+    from scrapers.base import MaskedStudentEntry
+
+    conn = sqlite3.connect(":memory:")
+    conn.executescript((ROOT / "db" / "schema.sql").read_text(encoding="utf-8"))
+    conn.execute(
+        "INSERT INTO schools (id, name, short_name, level, district, base_url, cms_type, updated_at) "
+        "VALUES ('t1','測試國小','測試國小','elementary','桃園區','https://x/','xoops','2025-01-01')"
+    )
+    entries = [
+        MaskedStudentEntry(school_year="114", grade=1, class_number=1, entry_index=0, masked_name="陳○宇"),
+        MaskedStudentEntry(school_year="114", grade=1, class_number=1, entry_index=1, masked_name="王小明"),  # 未遮罩，必須被拒
+        MaskedStudentEntry(school_year="114", grade=1, class_number=1, entry_index=2, masked_name="林○彤"),
+    ]
+    stored, rejected = upsert_student_entries(conn, "t1", entries)
+    check("遮罩姓名有寫入", stored == 2, f"stored={stored}")
+    check("未遮罩完整姓名被防護拒絕", rejected == 1, f"rejected={rejected}")
+    rows = [r[0] for r in conn.execute("SELECT masked_name FROM student_roster_entries ORDER BY entry_index")]
+    check("資料庫中完全沒有未遮罩姓名", rows == ["陳○宇", "林○彤"], str(rows))
+
+    # 名單更新時整班先刪後插，不留舊殘留
+    entries2 = [MaskedStudentEntry(school_year="114", grade=1, class_number=1, entry_index=0, masked_name="周○安")]
+    upsert_student_entries(conn, "t1", entries2)
+    rows2 = [r[0] for r in conn.execute("SELECT masked_name FROM student_roster_entries")]
+    check("整班重寫不留舊資料", rows2 == ["周○安"], str(rows2))
+    conn.close()
+
+
+def test_xoops_roster_with_masked_students():
+    print("test_xoops_roster_with_masked_students")
+    news_list_html = """
+    <html><body>
+      <a href="index.php?nsn=701">114學年度新生編班暨導師編配結果</a>
+    </body></html>
+    """
+    article_html = """
+    <html><body>
+      <h1>114學年度新生編班暨導師編配結果</h1>
+      <p>一年1班 導師 王小明　學生名單：陳○宇 林○彤 李○</p>
+      <p>一年2班 導師 李小華　學生名單：張○豪 黃○庭</p>
+    </body></html>
+    """
+    responses = {
+        "https://example.tyc.edu.tw/modules/tadnews/": news_list_html,
+        "https://example.tyc.edu.tw/modules/tadnews/index.php?nsn=701": article_html,
+    }
+
+    def fake_get(session, url, **kwargs):
+        html = responses.get(url)
+        return _fake_response(html) if html is not None else _fake_response("", status=404)
+
+    school = {
+        "id": "test_school", "short_name": "測試國小", "cms_type": "xoops",
+        "calendar_url": None,
+        "roster_list_url": "https://example.tyc.edu.tw/modules/tadnews/",
+    }
+    with patch("scrapers.xoops_scraper.polite_get", side_effect=fake_get):
+        scraper = XoopsScraper(school, session=MagicMock())
+        outcome = scraper.scrape_roster()
+
+    check("狀態為success", outcome.status == "success", outcome.message)
+    check("導師資料照舊解析", len(outcome.class_assignments) == 2, str(outcome.class_assignments))
+    check("遮罩學生名單共5筆", len(outcome.student_entries) == 5, str(len(outcome.student_entries)))
+    cls11 = [e.masked_name for e in outcome.student_entries if e.class_number == 1]
+    check("1班名單內容正確", cls11 == ["陳○宇", "林○彤", "李○"], str(cls11))
+    check("所有入庫姓名皆含遮罩符號",
+          all("○" in e.masked_name or "Ｏ" in e.masked_name for e in outcome.student_entries))
+
+
 if __name__ == "__main__":
     test_date_parsing()
     test_class_teacher_regex()
@@ -347,5 +443,8 @@ if __name__ == "__main__":
     test_calendar_pdf_announcement_fallback()
     test_dead_host_circuit_breaker()
     test_pdf_failure_does_not_poison_host()
+    test_masked_student_roster_parsing()
+    test_student_upsert_privacy_guard()
+    test_xoops_roster_with_masked_students()
     print(f"\n{PASS} passed, {FAIL} failed")
     sys.exit(1 if FAIL else 0)

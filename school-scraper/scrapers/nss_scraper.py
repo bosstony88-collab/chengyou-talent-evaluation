@@ -14,10 +14,10 @@ import re
 
 from bs4 import BeautifulSoup
 
-from .base import BaseSchoolScraper, ClassAssignment, ScrapeOutcome
+from .base import BaseSchoolScraper, ClassAssignment, MaskedStudentEntry, ScrapeOutcome
 from .heuristics import extract_events_heuristic
 from .http_utils import polite_get
-from .pdf_utils import parse_class_teacher_pairs
+from .pdf_utils import parse_class_teacher_pairs, parse_masked_student_roster
 
 logger = logging.getLogger("school_scraper")
 
@@ -100,10 +100,23 @@ class NssScraper(BaseSchoolScraper):
         if m:
             school_year = m.group(1)
 
-        if not pairs or not school_year:
+        student_entries: list[MaskedStudentEntry] = []
+        if school_year:
+            # 遮罩學生名單：只收學校頁面上本來就遮罩過的姓名（王○明），原樣保存
+            classes, _unattributed = parse_masked_student_roster(text)
+            for grade, class_number, names in classes:
+                for idx, name in enumerate(names):
+                    student_entries.append(
+                        MaskedStudentEntry(
+                            school_year=school_year, grade=grade, class_number=class_number,
+                            entry_index=idx, masked_name=name, source_url=url,
+                        )
+                    )
+
+        if (not pairs and not student_entries) or not school_year:
             return ScrapeOutcome(
                 target="roster", status="partial",
-                message=f"{note}；頁面含編班相關關鍵字，但抓不到完整的班級-導師配對或學年度，需人工核對格式",
+                message=f"{note}；頁面含編班相關關鍵字，但抓不到完整的班級-導師配對/遮罩名單或學年度，需人工核對格式",
             )
 
         assignments = [
@@ -115,8 +128,9 @@ class NssScraper(BaseSchoolScraper):
         ]
         return ScrapeOutcome(
             target="roster", status="success",
-            message=f"{note}；解析出 {len(assignments)} 筆班級-導師資料",
+            message=f"{note}；解析出 {len(assignments)} 筆班級-導師資料、{len(student_entries)} 筆遮罩學生名單",
             class_assignments=assignments,
+            student_entries=student_entries,
         )
 
     def _fetch_with_fallback(self, url: str) -> tuple[str | None, str]:

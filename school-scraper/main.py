@@ -22,7 +22,13 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 from db.init_db import init_db, DB_PATH, SCHOOLS_JSON_PATH  # noqa: E402
-from db.store import apply_carry_over, log_scrape, upsert_calendar_events, upsert_class_assignments  # noqa: E402
+from db.store import (  # noqa: E402
+    apply_carry_over,
+    log_scrape,
+    upsert_calendar_events,
+    upsert_class_assignments,
+    upsert_student_entries,
+)
 from scrapers import get_scraper  # noqa: E402
 from scrapers.http_utils import build_session  # noqa: E402
 
@@ -70,6 +76,13 @@ def run(school_filter: str | None, do_calendar: bool, do_roster: bool) -> dict:
                 logger.info("[%s] 班級編制：%s（寫入/更新 %d 筆）", school["id"], outcome.message, n)
             else:
                 logger.info("[%s] 班級編制：%s", school["id"], outcome.message)
+
+            if outcome.student_entries:
+                stored, rejected = upsert_student_entries(conn, school["id"], outcome.student_entries)
+                logger.info(
+                    "[%s] 遮罩學生名單：寫入 %d 筆%s", school["id"], stored,
+                    f"（{rejected} 筆未遮罩姓名被隱私防護拒絕）" if rejected else "",
+                )
 
             carried = apply_carry_over(conn, school["id"])
             if carried:

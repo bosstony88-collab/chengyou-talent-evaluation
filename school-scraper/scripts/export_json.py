@@ -50,6 +50,17 @@ def export():
             a["is_carried_over"] = bool(a["is_carried_over"])
         school["class_teacher_assignments"] = assignments
 
+        # 遮罩學生名單：資料庫層已保證只含學校官網公告上本來就遮罩過的姓名
+        student_roster = [
+            dict(r) for r in conn.execute(
+                "SELECT school_year, grade, class_number, entry_index, masked_name, source_url "
+                "FROM student_roster_entries WHERE school_id = ? "
+                "ORDER BY school_year DESC, grade, class_number, entry_index",
+                (school_id,),
+            )
+        ]
+        school["student_roster"] = student_roster
+
         latest_log = conn.execute(
             "SELECT target, status, message, run_at FROM scrape_log "
             "WHERE school_id = ? ORDER BY run_at DESC LIMIT 4",

@@ -27,6 +27,18 @@ class ClassAssignment:
 
 
 @dataclass
+class MaskedStudentEntry:
+    """學校官網公告上「本來就遮罩過」的學生姓名（例如 王○明），原樣保存、絕不還原。
+    entry_index 是該姓名在該班名單中的出現順序（遮罩後姓名可能同班重複，需以順序區分）。"""
+    school_year: str
+    grade: int
+    class_number: int
+    entry_index: int
+    masked_name: str
+    source_url: Optional[str] = None
+
+
+@dataclass
 class ScrapeOutcome:
     """單一目標（calendar 或 roster）的爬取結果。"""
     target: str  # "calendar" | "roster"
@@ -34,6 +46,7 @@ class ScrapeOutcome:
     message: str = ""
     calendar_events: list[CalendarEvent] = field(default_factory=list)
     class_assignments: list[ClassAssignment] = field(default_factory=list)
+    student_entries: list[MaskedStudentEntry] = field(default_factory=list)
 
 
 class BaseSchoolScraper:

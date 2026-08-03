@@ -51,6 +51,24 @@ CREATE TABLE IF NOT EXISTS class_teacher_assignments (
 
 CREATE INDEX IF NOT EXISTS idx_class_teacher_school_year ON class_teacher_assignments(school_id, school_year);
 
+-- 班級學生名單：只儲存學校官網公告上「本來就遮罩過」的姓名（例如 王○明），原樣保存。
+-- 隱私保證：db/store.py 的寫入函式會拒絕任何不含遮罩符號的姓名，系統結構上不可能儲存完整學生姓名，
+-- 也絕不嘗試還原/比對出完整姓名。entry_index 是該班名單在公告中的出現順序（遮罩姓名可能同班重複）。
+CREATE TABLE IF NOT EXISTS student_roster_entries (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    school_id     TEXT NOT NULL REFERENCES schools(id),
+    school_year   TEXT NOT NULL,
+    grade         INTEGER NOT NULL CHECK (grade BETWEEN 1 AND 9),
+    class_number  INTEGER NOT NULL,
+    entry_index   INTEGER NOT NULL,
+    masked_name   TEXT NOT NULL,
+    source_url    TEXT,
+    scraped_at    TEXT NOT NULL,
+    UNIQUE (school_id, school_year, grade, class_number, entry_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_student_roster_school_year ON student_roster_entries(school_id, school_year);
+
 -- 每次爬取的執行紀錄，方便排查個別學校失敗原因，單校失敗不應中斷整體流程
 CREATE TABLE IF NOT EXISTS scrape_log (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,

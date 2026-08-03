@@ -7,10 +7,14 @@ carry-over 假設依據台灣國中小常見的「包班制」慣例：同一屆
 """
 from __future__ import annotations
 
+import logging
 import sqlite3
 from datetime import datetime, timezone
 
-from scrapers.base import CalendarEvent, ClassAssignment
+from scrapers.base import CalendarEvent, ClassAssignment, MaskedStudentEntry
+from scrapers.pdf_utils import contains_mask
+
+logger = logging.getLogger("school_scraper")
 
 
 def now_iso() -> str:
@@ -58,6 +62,46 @@ def upsert_class_assignments(conn: sqlite3.Connection, school_id: str, assignmen
         )
         count += 1
     return count
+
+
+def upsert_student_entries(conn: sqlite3.Connection, school_id: str, entries: list[MaskedStudentEntry]) -> tuple[int, int]:
+    """寫入遮罩學生名單。隱私防護（不可繞過）：姓名不含遮罩符號者一律拒收，
+    保證資料庫結構上不可能存到完整學生姓名。同一班有新名單時整班先刪後插，
+    避免名單縮短時留下舊的殘留項目。回傳 (寫入筆數, 因未遮罩被拒筆數)。"""
+    ts = now_iso()
+    stored = 0
+    rejected_unmasked = 0
+
+    by_class: dict[tuple[str, int, int], list[MaskedStudentEntry]] = {}
+    for e in entries:
+        if not contains_mask(e.masked_name):
+            rejected_unmasked += 1
+            continue
+        by_class.setdefault((e.school_year, e.grade, e.class_number), []).append(e)
+
+    if rejected_unmasked:
+        logger.warning(
+            "[%s] 有 %d 筆學生姓名不含遮罩符號，依隱私防護規則拒絕入庫（本系統只收學校已遮罩的姓名）",
+            school_id, rejected_unmasked,
+        )
+
+    for (school_year, grade, class_number), class_entries in by_class.items():
+        conn.execute(
+            "DELETE FROM student_roster_entries "
+            "WHERE school_id = ? AND school_year = ? AND grade = ? AND class_number = ?",
+            (school_id, school_year, grade, class_number),
+        )
+        for e in class_entries:
+            conn.execute(
+                """
+                INSERT INTO student_roster_entries
+                    (school_id, school_year, grade, class_number, entry_index, masked_name, source_url, scraped_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (school_id, school_year, grade, class_number, e.entry_index, e.masked_name, e.source_url, ts),
+            )
+            stored += 1
+    return stored, rejected_unmasked
 
 
 def apply_carry_over(conn: sqlite3.Connection, school_id: str) -> int:
