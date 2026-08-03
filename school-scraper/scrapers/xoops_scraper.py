@@ -14,12 +14,13 @@ from __future__ import annotations
 
 import logging
 import re
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
 from .base import BaseSchoolScraper, CalendarEvent, ClassAssignment, ScrapeOutcome
-from .date_utils import parse_date_guess, school_year_to_ad_start_year
+from .date_utils import parse_date_guess
+from .heuristics import extract_events_heuristic
 from .http_utils import polite_get
 from .pdf_utils import extract_pdf_text, parse_class_teacher_pairs
 
@@ -28,10 +29,15 @@ logger = logging.getLogger("school_scraper")
 MAX_CALENDAR_PAGES = 14  # 主頁 + 最多再追蹤約一年份的月份導覽連結，避免無窮迴圈
 MAX_EVENT_DETAIL_FETCHES = 60  # 單校最多下載幾篇事件詳細頁，避免行事曆事件很多時單校爬取時間失控
 MAX_NEWS_ARTICLES_TO_SCAN = 40  # 公告列表最多掃描幾篇標題找編班/導師關鍵字
+MAX_CATEGORY_PAGES_TO_TRY = 3  # 公告列表首頁掃不到文章連結時，往下一層分類頁最多試幾個
 
 ROSTER_KEYWORDS = ["編班", "導師編配", "導師名單", "班級編制"]
+# 有些學校（例如慈文國中、文昌國中）沒有tad_cal互動式行事曆，而是用公告夾帶PDF發布，
+# 需要靠這組關鍵字掃描公告標題找出來，當作 tad_cal 策略失敗時的備援
+CALENDAR_ANNOUNCEMENT_KEYWORDS = ["行事曆", "校歷", "行事簡曆", "行事日曆"]
 EVENT_LINK_RE = re.compile(r"event\.php\?sn=\d+")
 NEWS_ARTICLE_LINK_RE = re.compile(r"(index|page)\.php\?.*\b(nsn|show_uid|uid)=\d+")
+CATEGORY_LINK_RE = re.compile(r"\bncsn=\d+")
 SCHOOL_YEAR_RE = re.compile(r"(\d{2,3})\s*學年度")
 
 
@@ -42,6 +48,22 @@ class XoopsScraper(BaseSchoolScraper):
         if not calendar_url:
             return ScrapeOutcome(target="calendar", status="skipped", message="schools.json 未設定 calendar_url")
 
+        tad_cal_outcome = self._scrape_tad_cal(calendar_url)
+        if tad_cal_outcome.calendar_events:
+            return tad_cal_outcome
+
+        # tad_cal 策略找不到任何事件連結，可能這所學校根本沒有互動式行事曆模組，
+        # 而是像慈文國中、文昌國中一樣用公告夾帶PDF發布，改用關鍵字掃描公告的備援策略
+        announcement_outcome = self._scrape_calendar_via_announcement(calendar_url)
+        if announcement_outcome.calendar_events:
+            return announcement_outcome
+
+        return ScrapeOutcome(
+            target="calendar", status="failed",
+            message=f"tad_cal策略：{tad_cal_outcome.message}｜公告PDF備援策略：{announcement_outcome.message}",
+        )
+
+    def _scrape_tad_cal(self, calendar_url: str) -> ScrapeOutcome:
         visited = set()
         to_visit = [calendar_url]
         event_links: set[str] = set()
@@ -124,23 +146,57 @@ class XoopsScraper(BaseSchoolScraper):
             raw_text=body_text[:1000],
         )
 
+    # ---------- 公告文章連結探索（roster 與 calendar 的 PDF 備援策略共用） ----------
+    def _extract_article_links(self, url: str) -> list[tuple[str, str]]:
+        resp = self._safe_get(url)
+        if resp is None:
+            return []
+        soup = BeautifulSoup(resp.text, "lxml")
+        links = []
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            text = a.get_text(strip=True)
+            if text and NEWS_ARTICLE_LINK_RE.search(href):
+                links.append((urljoin(url, href), text))
+        return links
+
+    def _discover_article_links(self, list_url: str) -> tuple[list[tuple[str, str]], str]:
+        """公告列表頁掃描不到文章連結時的備援策略：
+        1) 試著在網址後補上 index.php（有些校網 bare 目錄網址跟 index.php 渲染結果不同）
+        2) 往下一層分類頁（page.php?ncsn=N）找
+        回傳 (candidate_links, 實際成功取得資料的網址)，方便記錄在 log 裡。"""
+        candidates = self._extract_article_links(list_url)
+        if candidates:
+            return candidates, list_url
+
+        if not list_url.rstrip("/").endswith(".php"):
+            alt_url = list_url.rstrip("/") + "/index.php"
+            candidates = self._extract_article_links(alt_url)
+            if candidates:
+                return candidates, alt_url
+
+        resp = self._safe_get(list_url)
+        if resp is not None:
+            soup = BeautifulSoup(resp.text, "lxml")
+            category_urls = []
+            for a in soup.find_all("a", href=True):
+                href = a["href"]
+                if CATEGORY_LINK_RE.search(href) and not NEWS_ARTICLE_LINK_RE.search(href):
+                    category_urls.append(urljoin(list_url, href))
+            for cat_url in list(dict.fromkeys(category_urls))[:MAX_CATEGORY_PAGES_TO_TRY]:
+                candidates = self._extract_article_links(cat_url)
+                if candidates:
+                    return candidates, cat_url
+
+        return [], list_url
+
     # ---------- 班級編制表（編班暨導師編配公告） ----------
     def scrape_roster(self) -> ScrapeOutcome:
         list_url = self.school.get("roster_list_url")
         if not list_url:
             return ScrapeOutcome(target="roster", status="skipped", message="schools.json 未設定 roster_list_url")
 
-        resp = self._safe_get(list_url)
-        if resp is None:
-            return ScrapeOutcome(target="roster", status="failed", message=f"無法連線 {list_url}")
-
-        soup = BeautifulSoup(resp.text, "lxml")
-        candidate_links = []
-        for a in soup.find_all("a", href=True):
-            href = a["href"]
-            text = a.get_text(strip=True)
-            if NEWS_ARTICLE_LINK_RE.search(href):
-                candidate_links.append((urljoin(list_url, href), text))
+        candidate_links, used_url = self._discover_article_links(list_url)
 
         keyword_matches = [
             (url, text) for url, text in candidate_links[:MAX_NEWS_ARTICLES_TO_SCAN]
@@ -150,7 +206,7 @@ class XoopsScraper(BaseSchoolScraper):
         if not keyword_matches:
             return ScrapeOutcome(
                 target="roster", status="failed",
-                message=f"在 {list_url} 掃描了 {min(len(candidate_links), MAX_NEWS_ARTICLES_TO_SCAN)} 篇公告標題，"
+                message=f"在 {used_url} 掃描了 {min(len(candidate_links), MAX_NEWS_ARTICLES_TO_SCAN)} 篇公告標題，"
                         f"沒有找到含「編班」「導師編配」等關鍵字的公告，可能該公告目前不在第一頁或用詞不同",
             )
 
@@ -217,6 +273,66 @@ class XoopsScraper(BaseSchoolScraper):
             message=f"從 {len(keyword_matches)} 篇公告中解析出 {len(all_assignments)} 筆班級-導師資料"
                     + (f"，{len(parse_failures)} 篇解析失敗" if parse_failures else ""),
             class_assignments=all_assignments,
+        )
+
+    # ---------- 行事曆備援：公告夾帶PDF（無tad_cal互動式行事曆的學校，例如慈文國中、文昌國中） ----------
+    def _scrape_calendar_via_announcement(self, calendar_url: str) -> ScrapeOutcome:
+        candidate_links, used_url = self._discover_article_links(calendar_url)
+        matches = [
+            (url, text) for url, text in candidate_links[:MAX_NEWS_ARTICLES_TO_SCAN]
+            if any(kw in text for kw in CALENDAR_ANNOUNCEMENT_KEYWORDS)
+        ]
+        if not matches:
+            return ScrapeOutcome(
+                target="calendar", status="failed",
+                message=f"在 {used_url} 掃描了 {min(len(candidate_links), MAX_NEWS_ARTICLES_TO_SCAN)} 篇公告標題，"
+                        f"找不到含「行事曆」「校歷」等關鍵字的公告",
+            )
+
+        events: list[CalendarEvent] = []
+        for article_url, title in matches:
+            resp = self._safe_get(article_url)
+            if resp is None:
+                continue
+            article_soup = BeautifulSoup(resp.text, "lxml")
+            article_text = article_soup.get_text(" ", strip=True)
+
+            school_year = None
+            m = SCHOOL_YEAR_RE.search(title) or SCHOOL_YEAR_RE.search(article_text)
+            if m:
+                school_year = m.group(1)
+
+            texts_to_scan = [(article_text, article_url)]
+            pdf_links = [
+                urljoin(article_url, a["href"])
+                for a in article_soup.find_all("a", href=True)
+                if a["href"].lower().endswith(".pdf")
+            ]
+            for pdf_url in pdf_links[:5]:
+                pdf_resp = self._safe_get(pdf_url)
+                if pdf_resp is None:
+                    continue
+                pdf_text = extract_pdf_text(pdf_resp.content)
+                if pdf_text:
+                    texts_to_scan.append((pdf_text, pdf_url))
+
+            for text, source in texts_to_scan:
+                for ev in extract_events_heuristic(text, source):
+                    ev.school_year = ev.school_year or school_year
+                    events.append(ev)
+
+        if not events:
+            return ScrapeOutcome(
+                target="calendar", status="partial",
+                message=f"找到 {len(matches)} 篇疑似行事曆公告，但都解析不出日期事件（可能PDF是圖片掃描檔，"
+                        f"沒有可擷取的文字層）",
+            )
+
+        return ScrapeOutcome(
+            target="calendar", status="partial",
+            message=f"公告PDF備援策略：從 {len(matches)} 篇公告中用寬鬆規則擷取到 {len(events)} 筆疑似行事曆事件，"
+                    f"建議人工抽查正確性",
+            calendar_events=events,
         )
 
     # ---------- 共用 ----------

@@ -192,11 +192,86 @@ def test_carry_over_logic():
     conn.close()
 
 
+def test_roster_index_php_fallback():
+    print("test_roster_index_php_fallback")
+    # 模擬真實跑到的狀況：bare目錄網址(tadnews/)掃不到文章連結，但補上index.php後就找得到
+    bare_dir_html = "<html><body><p>這是模組首頁，沒有直接列出文章連結</p></body></html>"
+    index_php_html = """
+    <html><body>
+      <a href="index.php?nsn=901">113學年度新生編班暨導師編配結果公告</a>
+    </body></html>
+    """
+    article_html = "<html><body><h1>編班公告</h1><p>一年1班 導師 陳小美</p></body></html>"
+
+    responses = {
+        "https://example.tyc.edu.tw/modules/tadnews/": bare_dir_html,
+        "https://example.tyc.edu.tw/modules/tadnews/index.php": index_php_html,
+        "https://example.tyc.edu.tw/modules/tadnews/index.php?nsn=901": article_html,
+    }
+
+    def fake_get(session, url, **kwargs):
+        html = responses.get(url)
+        if html is None:
+            return _fake_response("", status=404)
+        return _fake_response(html)
+
+    school = {
+        "id": "test_school", "short_name": "測試國小", "cms_type": "xoops",
+        "calendar_url": None,
+        "roster_list_url": "https://example.tyc.edu.tw/modules/tadnews/",
+    }
+    with patch("scrapers.xoops_scraper.polite_get", side_effect=fake_get):
+        scraper = XoopsScraper(school, session=MagicMock())
+        outcome = scraper.scrape_roster()
+
+    check("index.php備援後狀態為success", outcome.status == "success", outcome.message)
+    check("解析出1筆", len(outcome.class_assignments) == 1, str(outcome.class_assignments))
+
+
+def test_calendar_pdf_announcement_fallback():
+    print("test_calendar_pdf_announcement_fallback")
+    # 模擬慈文國中/文昌國中的狀況：沒有tad_cal，行事曆是公告夾帶純文字內容（不含PDF二進位，簡化測試）
+    tad_cal_empty_html = "<html><body><p>本模組沒有任何 event.php 連結</p></body></html>"
+    news_list_html = """
+    <html><body>
+      <a href="index.php?nsn=501">115學年度上學期行事曆</a>
+      <a href="index.php?nsn=502">畢業典禮花絮</a>
+    </body></html>
+    """
+    calendar_article_html = "<html><body><h1>115學年度上學期行事曆</h1><p>114年8月30日 開學日　114年9月1日 始業式</p></body></html>"
+
+    responses = {
+        "https://example.tyc.edu.tw/modules/tadnews/": news_list_html,
+        "https://example.tyc.edu.tw/modules/tadnews/index.php?nsn=501": calendar_article_html,
+    }
+
+    def fake_get(session, url, **kwargs):
+        html = responses.get(url)
+        if html is None:
+            return _fake_response("", status=404)
+        return _fake_response(html)
+
+    school = {
+        "id": "test_school", "short_name": "測試國中", "cms_type": "xoops",
+        "calendar_url": "https://example.tyc.edu.tw/modules/tadnews/",
+        "roster_list_url": None,
+    }
+    with patch("scrapers.xoops_scraper.polite_get", side_effect=fake_get):
+        scraper = XoopsScraper(school, session=MagicMock())
+        outcome = scraper.scrape_calendar()
+
+    check("tad_cal沒有事件連結時能fallback成功找到事件", len(outcome.calendar_events) >= 2, outcome.message)
+    dates = {e.start_date for e in outcome.calendar_events}
+    check("從公告內文寬鬆解析出日期", "2025-08-30" in dates and "2025-09-01" in dates, str(dates))
+
+
 if __name__ == "__main__":
     test_date_parsing()
     test_class_teacher_regex()
     test_xoops_calendar_scraper()
     test_xoops_roster_scraper()
     test_carry_over_logic()
+    test_roster_index_php_fallback()
+    test_calendar_pdf_announcement_fallback()
     print(f"\n{PASS} passed, {FAIL} failed")
     sys.exit(1 if FAIL else 0)

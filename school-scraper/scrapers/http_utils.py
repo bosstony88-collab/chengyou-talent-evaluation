@@ -15,7 +15,7 @@ USER_AGENT = (
     "+internal use only, aggregating publicly posted class-teacher rosters and school calendars)"
 )
 
-REQUEST_TIMEOUT = 20  # 秒
+REQUEST_TIMEOUT = 10  # 秒。研究階段發現有學校網域已失效/逾時，設太長會讓單校卡很久拖累整體排程
 # 對公立學校網站保持禮貌的請求間隔，避免造成負擔
 POLITE_DELAY_SECONDS = 1.5
 
@@ -24,8 +24,8 @@ def build_session() -> requests.Session:
     session = requests.Session()
     session.headers.update({"User-Agent": USER_AGENT})
     retry = Retry(
-        total=3,
-        backoff_factor=2,
+        total=1,  # 連線層級的重試次數也要克制，逾時的死網域不值得反覆重試拖時間
+        backoff_factor=1,
         status_forcelist=[429, 500, 502, 503, 504],
         allowed_methods=["GET", "HEAD"],
     )
