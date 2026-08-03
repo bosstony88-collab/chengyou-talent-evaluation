@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import logging
 import re
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
+import requests
 from bs4 import BeautifulSoup
 
 from .base import BaseSchoolScraper, CalendarEvent, ClassAssignment, ScrapeOutcome
@@ -42,6 +43,12 @@ SCHOOL_YEAR_RE = re.compile(r"(\d{2,3})\s*學年度")
 
 
 class XoopsScraper(BaseSchoolScraper):
+    def __init__(self, school: dict, session):
+        super().__init__(school, session)
+        # 連線層級失敗（DNS/逾時/拒絕連線）代表整個主機都連不上，記錄下來後同一次爬取
+        # 就不要再對同一主機重複嘗試 tad_cal / 公告備援 / roster 三條路徑，避免逾時疊加拖慢整體進度
+        self._dead_hosts: set[str] = set()
+
     # ---------- 行事曆 ----------
     def scrape_calendar(self) -> ScrapeOutcome:
         calendar_url = self.school.get("calendar_url")
@@ -337,12 +344,22 @@ class XoopsScraper(BaseSchoolScraper):
 
     # ---------- 共用 ----------
     def _safe_get(self, url: str):
+        host = urlparse(url).netloc
+        if host in self._dead_hosts:
+            return None
         try:
             resp = polite_get(self.session, url)
             if resp.status_code != 200:
                 logger.info("[%s] GET %s -> HTTP %s", self.school["id"], url, resp.status_code)
                 return None
             return resp
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+            logger.info(
+                "[%s] %s 主機連線層級失敗（DNS/逾時/拒絕連線），本次爬取跳過此主機後續請求: %s",
+                self.school["id"], host, exc,
+            )
+            self._dead_hosts.add(host)
+            return None
         except Exception as exc:
             logger.info("[%s] GET %s 失敗: %s", self.school["id"], url, exc)
             return None

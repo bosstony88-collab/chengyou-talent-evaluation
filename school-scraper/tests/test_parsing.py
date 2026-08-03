@@ -265,6 +265,35 @@ def test_calendar_pdf_announcement_fallback():
     check("從公告內文寬鬆解析出日期", "2025-08-30" in dates and "2025-09-01" in dates, str(dates))
 
 
+def test_dead_host_circuit_breaker():
+    print("test_dead_host_circuit_breaker")
+    # 模擬完全連不上的網域(建國國中在真實跑的時候就是這樣)：
+    # calendar(tad_cal)、calendar公告備援、roster 三條路徑理論上都會各打一次這個主機，
+    # 但確認只有第一次真的呼叫 polite_get，之後都被 _dead_hosts 擋掉，不會再逾時重試
+    import requests as requests_module
+
+    call_count = {"n": 0}
+
+    def fake_get_always_times_out(session, url, **kwargs):
+        call_count["n"] += 1
+        raise requests_module.exceptions.ConnectTimeout("simulated dead host")
+
+    school = {
+        "id": "dead_school", "short_name": "測試死站", "cms_type": "xoops",
+        "calendar_url": "https://dead.example.tw/modules/tad_cal/",
+        "roster_list_url": "https://dead.example.tw/modules/tadnews/",
+    }
+    with patch("scrapers.xoops_scraper.polite_get", side_effect=fake_get_always_times_out):
+        scraper = XoopsScraper(school, session=MagicMock())
+        cal_outcome = scraper.scrape_calendar()
+        roster_outcome = scraper.scrape_roster()
+
+    check("calendar狀態為failed", cal_outcome.status == "failed", cal_outcome.message)
+    check("roster狀態為failed", roster_outcome.status == "failed", roster_outcome.message)
+    check("死主機只被真的呼叫過一次，之後都被circuit breaker擋下",
+          call_count["n"] == 1, f"實際呼叫次數={call_count['n']}")
+
+
 if __name__ == "__main__":
     test_date_parsing()
     test_class_teacher_regex()
@@ -273,5 +302,6 @@ if __name__ == "__main__":
     test_carry_over_logic()
     test_roster_index_php_fallback()
     test_calendar_pdf_announcement_fallback()
+    test_dead_host_circuit_breaker()
     print(f"\n{PASS} passed, {FAIL} failed")
     sys.exit(1 if FAIL else 0)
