@@ -31,6 +31,7 @@ MAX_CALENDAR_PAGES = 14  # 主頁 + 最多再追蹤約一年份的月份導覽�
 MAX_EVENT_DETAIL_FETCHES = 60  # 單校最多下載幾篇事件詳細頁，避免行事曆事件很多時單校爬取時間失控
 MAX_NEWS_ARTICLES_TO_SCAN = 40  # 公告列表最多掃描幾篇標題找編班/導師關鍵字
 MAX_CATEGORY_PAGES_TO_TRY = 3  # 公告列表首頁掃不到文章連結時，往下一層分類頁最多試幾個
+MAX_PDF_ATTACHMENTS_PER_ARTICLE = 5  # 單篇公告最多下載幾個PDF附件，避免不相關附件拖慢單校處理時間
 
 ROSTER_KEYWORDS = ["編班", "導師編配", "導師名單", "班級編制"]
 # 有些學校（例如慈文國中、文昌國中）沒有tad_cal互動式行事曆，而是用公告夾帶PDF發布，
@@ -240,8 +241,10 @@ class XoopsScraper(BaseSchoolScraper):
                 for a in article_soup.find_all("a", href=True)
                 if a["href"].lower().endswith(".pdf")
             ]
-            for pdf_url in pdf_links:
-                pdf_resp = self._safe_get(pdf_url)
+            # 上限：實測發現有公告一次貼多個不相關PDF附件，若某個附件網址連線異常（例如
+            # IPv6路由問題導致逼近逾時上限才失敗），不設上限會讓單篇公告拖很久
+            for pdf_url in pdf_links[:MAX_PDF_ATTACHMENTS_PER_ARTICLE]:
+                pdf_resp = self._safe_get(pdf_url, count_as_host_failure=False)
                 if pdf_resp is None:
                     continue
                 pdf_text = extract_pdf_text(pdf_resp.content)
@@ -315,8 +318,8 @@ class XoopsScraper(BaseSchoolScraper):
                 for a in article_soup.find_all("a", href=True)
                 if a["href"].lower().endswith(".pdf")
             ]
-            for pdf_url in pdf_links[:5]:
-                pdf_resp = self._safe_get(pdf_url)
+            for pdf_url in pdf_links[:MAX_PDF_ATTACHMENTS_PER_ARTICLE]:
+                pdf_resp = self._safe_get(pdf_url, count_as_host_failure=False)
                 if pdf_resp is None:
                     continue
                 pdf_text = extract_pdf_text(pdf_resp.content)
@@ -343,7 +346,11 @@ class XoopsScraper(BaseSchoolScraper):
         )
 
     # ---------- 共用 ----------
-    def _safe_get(self, url: str):
+    def _safe_get(self, url: str, count_as_host_failure: bool = True):
+        """count_as_host_failure=False 用於PDF附件等次要資源：
+        單一附件連不上不代表整個主機都連不上（實測發現過主站正常、但特定PDF路徑
+        "Network unreachable" 的案例），不應該因此把整個主機標記為死站而連累其他頁面。
+        """
         host = urlparse(url).netloc
         if host in self._dead_hosts:
             return None
@@ -355,10 +362,11 @@ class XoopsScraper(BaseSchoolScraper):
             return resp
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
             logger.info(
-                "[%s] %s 主機連線層級失敗（DNS/逾時/拒絕連線），本次爬取跳過此主機後續請求: %s",
-                self.school["id"], host, exc,
+                "[%s] GET %s 連線層級失敗（DNS/逾時/拒絕連線）: %s", self.school["id"], url, exc,
             )
-            self._dead_hosts.add(host)
+            if count_as_host_failure:
+                logger.info("[%s] 判定 %s 整個主機無法連線，本次爬取跳過此主機後續請求", self.school["id"], host)
+                self._dead_hosts.add(host)
             return None
         except Exception as exc:
             logger.info("[%s] GET %s 失敗: %s", self.school["id"], url, exc)

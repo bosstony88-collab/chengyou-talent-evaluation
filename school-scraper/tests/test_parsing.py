@@ -294,6 +294,49 @@ def test_dead_host_circuit_breaker():
           call_count["n"] == 1, f"實際呼叫次數={call_count['n']}")
 
 
+def test_pdf_failure_does_not_poison_host():
+    print("test_pdf_failure_does_not_poison_host")
+    # 模擬中興國中在真實跑的時候發生的狀況：主站頁面都連得上，但公告裡某個PDF附件
+    # 網址連不上（Network unreachable）。這種情況不該把整個主機標記為死站，
+    # 否則後續 roster 對同一主機的正常頁面也會被circuit breaker誤擋
+    import requests as requests_module
+
+    news_list_html = """
+    <html><body>
+      <a href="index.php?nsn=601">115學年度編班暨導師編配結果</a>
+    </body></html>
+    """
+    article_html = """
+    <html><body>
+      <h1>115學年度編班暨導師編配結果</h1>
+      <p>一年1班 導師 王小明</p>
+      <a href="/gov/unreachable.pdf">附件</a>
+    </body></html>
+    """
+
+    def fake_get(session, url, **kwargs):
+        if url.endswith("unreachable.pdf"):
+            raise requests_module.exceptions.ConnectionError("simulated network unreachable")
+        if "index.php?nsn=601" in url:
+            return _fake_response(article_html)
+        if url == "https://example.tyc.edu.tw/modules/tadnews/":
+            return _fake_response(news_list_html)
+        return _fake_response("", status=404)
+
+    school = {
+        "id": "test_school", "short_name": "測試國中", "cms_type": "xoops",
+        "calendar_url": None,
+        "roster_list_url": "https://example.tyc.edu.tw/modules/tadnews/",
+    }
+    with patch("scrapers.xoops_scraper.polite_get", side_effect=fake_get):
+        scraper = XoopsScraper(school, session=MagicMock())
+        outcome = scraper.scrape_roster()
+
+    check("PDF連不上不影響HTML內文已解析出的班級-導師資料",
+          outcome.status == "success" and len(outcome.class_assignments) == 1, outcome.message)
+    check("PDF失敗不會把主機標記為死站", "example.tyc.edu.tw" not in scraper._dead_hosts, scraper._dead_hosts)
+
+
 if __name__ == "__main__":
     test_date_parsing()
     test_class_teacher_regex()
@@ -303,5 +346,6 @@ if __name__ == "__main__":
     test_roster_index_php_fallback()
     test_calendar_pdf_announcement_fallback()
     test_dead_host_circuit_breaker()
+    test_pdf_failure_does_not_poison_host()
     print(f"\n{PASS} passed, {FAIL} failed")
     sys.exit(1 if FAIL else 0)
