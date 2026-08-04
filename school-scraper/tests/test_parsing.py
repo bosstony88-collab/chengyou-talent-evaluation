@@ -592,6 +592,81 @@ def test_roster_list_url_pointing_directly_to_article():
     check("遮罩學生名單正確", len(outcome.student_entries) == 2, str(outcome.student_entries))
 
 
+def test_masked_name_excludes_page_reference_placeholder():
+    print("test_masked_name_excludes_page_reference_placeholder")
+    # 實跑發現：慈文國小的課程計畫PDF（跟編班公告連結在一起，但內容完全不相關）
+    # 大量出現「詳見第○○頁」這類頁碼佔位符，恰好符合遮罩姓名pattern，
+    # 且文中本來就有「普通班」「資源班」等詞彙，無法被"班"字內容過濾擋掉。
+    # 驗證「第...頁」這種頁碼佔位樣式會被過濾，不算進姓名或未歸屬統計。
+    from scrapers.pdf_utils import parse_masked_student_roster, masked_name_samples
+
+    text = "普通班課程規劃如第○○頁總體課程節數總表，詳見第○頁 一年1班 陳○宇"
+    classes, unattributed = parse_masked_student_roster(text)
+    as_dict = {(g, c): names for g, c, names in classes}
+    check("頁碼佔位符不算進未歸屬統計、也不混進班級名單",
+          as_dict == {(1, 1): ["陳○宇"]} and unattributed == 0,
+          f"{as_dict} unattributed={unattributed}")
+
+    samples = masked_name_samples("詳見第○○頁 陳○宇")
+    check("masked_name_samples也濾掉頁碼佔位符", samples == ["陳○宇"], str(samples))
+
+
+def test_roster_dedups_and_skips_curriculum_plan_pdf():
+    print("test_roster_dedups_and_skips_curriculum_plan_pdf")
+    # 實跑發現慈文國小同一份「課程計畫.pdf」被4篇候選公告重複連結，各自重新下載+解析，
+    # 拖慢單校爬取時間達16分鐘。驗證：(1) 課程計畫類PDF直接依檔名跳過不下載，
+    # (2) 就算沒被檔名擋到，同一個PDF網址在同一次roster爬取中只會下載一次
+    news_list_html = """
+    <html><body>
+      <a href="index.php?nsn=801">113學年度編班暨導師編配公告一</a>
+      <a href="index.php?nsn=802">113學年度編班暨導師編配公告二</a>
+    </body></html>
+    """
+    article1_html = """
+    <html><body><h1>113學年度編班暨導師編配公告一</h1>
+      <p>一年1班 導師 王小明</p>
+      <a href="/uploads/113%E5%AD%B8%E5%B9%B4%E8%AA%B2%E7%A8%8B%E8%A8%88%E7%95%AB.pdf">課程計畫PDF(檔名網址編碼)</a>
+      <a href="/uploads/shared_attachment.pdf">共用附件</a>
+    </body></html>
+    """
+    article2_html = """
+    <html><body><h1>113學年度編班暨導師編配公告二</h1>
+      <p>一年2班 導師 李小華</p>
+      <a href="/uploads/shared_attachment.pdf">共用附件</a>
+    </body></html>
+    """
+    fetched_urls = []
+
+    def fake_get(session, url, **kwargs):
+        fetched_urls.append(url)
+        if "shared_attachment.pdf" in url:
+            return _fake_response("dummy pdf bytes not actually a pdf")
+        if url == "https://example.tyc.edu.tw/modules/tadnews/":
+            return _fake_response(news_list_html)
+        if "nsn=801" in url:
+            return _fake_response(article1_html)
+        if "nsn=802" in url:
+            return _fake_response(article2_html)
+        return _fake_response("", status=404)
+
+    school = {
+        "id": "test_school", "short_name": "測試國小", "cms_type": "xoops",
+        "calendar_url": None,
+        "roster_list_url": "https://example.tyc.edu.tw/modules/tadnews/",
+    }
+    with patch("scrapers.xoops_scraper.polite_get", side_effect=fake_get), \
+         patch("scrapers.xoops_scraper.extract_pdf_text", return_value=""):
+        scraper = XoopsScraper(school, session=MagicMock())
+        outcome = scraper.scrape_roster()
+
+    from urllib.parse import unquote as _unquote
+    check("課程計畫PDF完全沒被下載（檔名直接跳過）",
+          not any("課程計畫" in _unquote(u) for u in fetched_urls), str(fetched_urls))
+    check("共用附件PDF只下載一次，即使被2篇公告連結",
+          sum(1 for u in fetched_urls if "shared_attachment.pdf" in u) == 1, str(fetched_urls))
+    check("班級-導師資料仍正確解析出2筆", len(outcome.class_assignments) == 2, str(outcome.class_assignments))
+
+
 def test_roster_keyword_pagination_fallback():
     print("test_roster_keyword_pagination_fallback")
     # 模擬會稽國中在真實跑的時候發生的狀況：公告列表首頁40篇掃不到編班關鍵字
@@ -654,6 +729,8 @@ if __name__ == "__main__":
     test_masked_name_samples()
     test_known_roster_article_urls()
     test_roster_list_url_pointing_directly_to_article()
+    test_masked_name_excludes_page_reference_placeholder()
+    test_roster_dedups_and_skips_curriculum_plan_pdf()
     test_roster_keyword_pagination_fallback()
     print(f"\n{PASS} passed, {FAIL} failed")
     sys.exit(1 if FAIL else 0)

@@ -103,13 +103,26 @@ def contains_mask(name: str) -> bool:
     return any(c in MASK_CHARS for c in name)
 
 
+def _is_plausible_name(candidate: str) -> bool:
+    """過濾常見的非姓名假匹配。目前已知案例：課程計畫等公文常見的「第○○頁」
+    頁碼佔位符（原始文件排版時頁碼還沒填，先留○○佔位），恰好符合遮罩姓名的pattern，
+    但顯然不是姓名——真實姓名不會以「第」開頭、以「頁」結尾。"""
+    return not (candidate.startswith("第") and candidate.endswith("頁"))
+
+
+def _iter_plausible_masked_names(text: str):
+    for m in _MASKED_NAME_RE.finditer(text):
+        if _is_plausible_name(m.group()):
+            yield m
+
+
 def first_masked_context(text: str, before: int = 120, after: int = 40) -> str | None:
     """回傳第一個遮罩姓名前後的文字樣本，供診斷「名單為何無法歸屬班級」用。
     樣本中的姓名本來就是學校遮罩過的版本，記錄到log不會外洩完整個資。"""
-    m = _MASKED_NAME_RE.search(text.translate(_FULLWIDTH_TRANS))
+    normalized = text.translate(_FULLWIDTH_TRANS)
+    m = next(_iter_plausible_masked_names(normalized), None)
     if not m:
         return None
-    normalized = text.translate(_FULLWIDTH_TRANS)
     return normalized[max(0, m.start() - before): m.end() + after]
 
 
@@ -117,7 +130,7 @@ def masked_name_samples(text: str, limit: int = 5) -> list[str]:
     """回傳文字中比對到的遮罩姓名樣本（去重、最多limit筆），供診斷log直接判斷
     是真實姓名還是誤判（例如房間編號、圖例文字），比只看前後文更快確認。"""
     seen: list[str] = []
-    for m in _MASKED_NAME_RE.finditer(text.translate(_FULLWIDTH_TRANS)):
+    for m in _iter_plausible_masked_names(text.translate(_FULLWIDTH_TRANS)):
         if m.group() not in seen:
             seen.append(m.group())
         if len(seen) >= limit:
@@ -177,9 +190,9 @@ def parse_masked_student_roster(
         return [], 0
     headers = list(_CLASS_HEADER_RE.finditer(text))
     if not headers:
-        return [], len(_MASKED_NAME_RE.findall(text))
+        return [], sum(1 for _ in _iter_plausible_masked_names(text))
 
-    unattributed = len(_MASKED_NAME_RE.findall(text[: headers[0].start()]))
+    unattributed = sum(1 for _ in _iter_plausible_masked_names(text[: headers[0].start()]))
 
     merged: dict[tuple[int, int], list[str]] = {}
     order: list[tuple[int, int]] = []
@@ -200,7 +213,7 @@ def parse_masked_student_roster(
             continue
 
         seg_end = headers[i + 1].start() if i + 1 < len(headers) else len(text)
-        names = _MASKED_NAME_RE.findall(text[m.end():seg_end])
+        names = [nm.group() for nm in _iter_plausible_masked_names(text[m.end():seg_end])]
         if not names:
             continue
         key = (grade, class_number)

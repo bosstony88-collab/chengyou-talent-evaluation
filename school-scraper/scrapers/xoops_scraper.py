@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import re
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -43,6 +43,9 @@ MAX_EXTRA_ROSTER_LIST_PAGES = 2  # 編班關鍵字在公告列表首頁掃不到
                                   # ——編班公告每學年才發一次，很容易被後續公告擠出首頁
 
 ROSTER_KEYWORDS = ["編班", "導師編配", "導師名單", "班級編制", "新生名單", "分班"]
+# 課程計畫等大型公文常跟編班公告一起被附加/轉貼，內容是課程規劃而非班級名單，
+# 卻常見「詳見第○○頁」這類頁碼佔位符造成誤判，且文件通常很大、解析耗時，直接跳過不下載
+PDF_FILENAME_SKIP_KEYWORDS = ["課程計畫"]
 # 有些學校（例如慈文國中、文昌國中）沒有tad_cal互動式行事曆，而是用公告夾帶PDF發布，
 # 需要靠這組關鍵字掃描公告標題找出來，當作 tad_cal 策略失敗時的備援
 CALENDAR_ANNOUNCEMENT_KEYWORDS = ["行事曆", "校歷", "行事簡曆", "行事日曆"]
@@ -290,6 +293,7 @@ class XoopsScraper(BaseSchoolScraper):
         seen_roster_classes: set[tuple[str, int, int]] = set()  # 同班名單以最先掃到的公告（最新）為準
         parse_failures = []
         unattributed_masked_total = 0
+        pdf_text_cache: dict[str, str] = {}  # 同一份PDF可能被多篇候選公告重複連結，只下載/解析一次
         for article_url, title in all_candidates:
             resp = self._safe_get(article_url)
             if resp is None:
@@ -311,14 +315,19 @@ class XoopsScraper(BaseSchoolScraper):
                 urljoin(article_url, a["href"])
                 for a in article_soup.find_all("a", href=True)
                 if a["href"].lower().endswith(".pdf")
+                and not any(kw in unquote(a["href"]) for kw in PDF_FILENAME_SKIP_KEYWORDS)
             ]
             # 上限：實測發現有公告一次貼多個不相關PDF附件，若某個附件網址連線異常（例如
             # IPv6路由問題導致逼近逾時上限才失敗），不設上限會讓單篇公告拖很久
             for pdf_url in pdf_links[:MAX_PDF_ATTACHMENTS_PER_ARTICLE]:
-                pdf_resp = self._safe_get(pdf_url, count_as_host_failure=False)
-                if pdf_resp is None:
-                    continue
-                pdf_text = extract_pdf_text(pdf_resp.content)
+                if pdf_url in pdf_text_cache:
+                    pdf_text = pdf_text_cache[pdf_url]
+                else:
+                    pdf_resp = self._safe_get(pdf_url, count_as_host_failure=False)
+                    if pdf_resp is None:
+                        continue
+                    pdf_text = extract_pdf_text(pdf_resp.content)
+                    pdf_text_cache[pdf_url] = pdf_text
                 pairs.extend(parse_class_teacher_pairs(pdf_text))
                 texts_for_roster.append((pdf_text, pdf_url))
                 if not school_year:
