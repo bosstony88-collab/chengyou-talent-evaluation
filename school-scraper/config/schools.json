@@ -21,10 +21,10 @@
       "cms_type": "nss",
       "calendar_url": null,
       "calendar_format": "unknown",
-      "roster_list_url": "https://www.tyjh.tyc.edu.tw/nss/p/Administration",
+      "roster_list_url": "https://www.tyjh.tyc.edu.tw/nss/p/RS01",
       "roster_source_note": "各班課表PDF右上角欄位含導師姓名，需逐班下載拼湊，例如 /uploads/1676627220423cB7k8m2b.pdf",
       "verified": false,
-      "notes": "NSS 系統代表校之一，路徑含 /nss/main/freeze/{hash}/{token}/{id} 或 /nss/p/xxx，非XOOPS，需另開發解析邏輯，優先查是否有JSON API。roster_list_url是比照同款NSS平台的文山國小(/nss/p/Administration)、西門國小已確認可行的路徑猜測，尚未人工核對，原本完全沒有網址設定導致roster直接被略過，先嘗試總比略過好"
+      "notes": "NSS 系統代表校之一，路徑含 /nss/main/freeze/{hash}/{token}/{id} 或 /nss/p/xxx，非XOOPS，需另開發解析邏輯，優先查是否有JSON API。原本猜測的/nss/p/Administration實跑證實回傳500錯誤(路徑不存在)；WebSearch確認真實存在的頁面是/nss/p/RS01「學區及常態編班」，改用這個網址"
     },
     {
       "id": "cgjhs_jh",
@@ -37,8 +37,11 @@
       "calendar_url": "https://www.ckjhs.tyc.edu.tw/modules/tinyd0/",
       "calendar_format": "unknown",
       "roster_list_url": "https://www.ckjhs.tyc.edu.tw/modules/tadnews/",
+      "known_roster_article_urls": [
+        "http://www.ckjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4837"
+      ],
       "verified": false,
-      "notes": "新舊站並存：新站 www.ckjhs.tyc.edu.tw (XOOPS) vs 舊站 web.ckjhs.tyc.edu.tw 仍可存取；另有獨立子網域 ck3200.ckjhs.tyc.edu.tw/dyna/schedule/ 是另一套日曆程式。需先人工確認現行維護中的是哪一版"
+      "notes": "新舊站並存：新站 www.ckjhs.tyc.edu.tw (XOOPS) vs 舊站 web.ckjhs.tyc.edu.tw 仍可存取；另有獨立子網域 ck3200.ckjhs.tyc.edu.tw/dyna/schedule/ 是另一套日曆程式。需先人工確認現行維護中的是哪一版。known_roster_article_urls經WebSearch確認：nsn=4837「本校109學年度新生編班及導師抽籤結果公告」（109學年度，較舊但確認為真實公告，網址所在網域www.ckjhs.tyc.edu.tw確認存活）"
     },
     {
       "id": "dyjhs_jh",
@@ -65,8 +68,11 @@
       "calendar_url": "https://www.twjh.tyc.edu.tw/modules/tadnews/",
       "calendar_format": "pdf_announcement",
       "roster_list_url": "https://www.twjh.tyc.edu.tw/modules/tadnews/",
+      "known_roster_article_urls": [
+        "https://www.twjh.tyc.edu.tw/modules/tadnews/index.php?nsn=6188"
+      ],
       "verified": true,
-      "notes": "行事曆確認為PDF附件透過tadnews公告張貼，例：115-暑假-學校行事曆.pdf"
+      "notes": "行事曆確認為PDF附件透過tadnews公告張貼，例：115-暑假-學校行事曆.pdf。known_roster_article_urls經WebSearch確認：nsn=6188「本校114學年度新生常態編班暨導師編配作業公告」（114學年度，相對最新）"
     },
     {
       "id": "wcjhs_jh",
@@ -92,9 +98,9 @@
       "cms_type": "nss",
       "calendar_url": null,
       "calendar_format": "unknown",
-      "roster_list_url": "http://www.ffjh.tyc.edu.tw/nss/p/Administration",
+      "roster_list_url": "https://www.ffjh.tyc.edu.tw/nss/p/AAO",
       "verified": false,
-      "notes": "主站疑似NSS系統(/nss/main/freeze/...)；另有子網域 class.ffjh.tyc.edu.tw 用ASP legacy系統(TextView.asp)，可能是班級網頁子系統，技術棧最混雜的學校之一，需分開處理兩套系統。roster_list_url是比照同款NSS平台文山國小已確認可行的路徑猜測，尚未人工核對，原本完全沒有網址設定導致roster直接被略過，先嘗試總比略過好"
+      "notes": "主站疑似NSS系統(/nss/main/freeze/...)；另有子網域 class.ffjh.tyc.edu.tw 用ASP legacy系統(TextView.asp)，可能是班級網頁子系統，技術棧最混雜的學校之一，需分開處理兩套系統。原本猜測的/nss/p/Administration實跑證實回傳500錯誤(路徑不存在)；WebSearch確認真實存在的頁面是/nss/p/AAO(教務處)，改用這個網址"
     },
     {
       "id": "tdjhs_jh",
@@ -107,8 +113,12 @@
       "calendar_url": "https://www.tdjhs.tyc.edu.tw/modules/tad_cal/",
       "calendar_format": "html_tad_cal",
       "roster_list_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/",
+      "known_roster_article_urls": [
+        "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361",
+        "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+      ],
       "verified": true,
-      "notes": "行事曆確認是互動式HTML月曆模組(tad_cal)，結構化HTML對爬蟲最友善，優先作為XOOPS行事曆parser的參考範本"
+      "notes": "行事曆確認是互動式HTML月曆模組(tad_cal)，結構化HTML對爬蟲最友善，優先作為XOOPS行事曆parser的參考範本。known_roster_article_urls經WebSearch確認為真實公告：nsn=4361「115學年度七年級新生常態編班及導師編配結果公告」、nsn=2604「114學年度新生編班暨導師編配結果公告」"
     },
     {
       "id": "chjh_jh",
@@ -118,11 +128,11 @@
       "district": "桃園區",
       "base_url": "https://www.chjh.tyc.edu.tw/",
       "cms_type": "xoops",
-      "calendar_url": null,
-      "calendar_format": "unknown",
-      "roster_list_url": null,
+      "calendar_url": "https://www.chjh.tyc.edu.tw/modules/tad_cal/",
+      "calendar_format": "html_tad_cal_guess",
+      "roster_list_url": "https://www.chjh.tyc.edu.tw/modules/tadnews/",
       "verified": false,
-      "notes": "官網歸屬本次調查中最不確定，搜尋到4種並存網址(www.chjh.tyc.edu.tw / 中文IDN網域 / 第三方teamslite平台 / 舊主機hinet)。注意勿與中興國中(www.chjhs.tyc.edu.tw，多一個s)搞混。正式開發前務必人工電話/實地確認正式官網"
+      "notes": "官網歸屬本次調查中最不確定，搜尋到4種並存網址(www.chjh.tyc.edu.tw / 中文IDN網域 / 第三方teamslite平台 / 舊主機hinet)。注意勿與中興國中(www.chjhs.tyc.edu.tw，多一個s)搞混。WebSearch重新確認www.chjh.tyc.edu.tw目前是活躍現行站（含2026/7/29近期公告、tadgallery/tad_web/profile等標準XOOPS模組），calendar_url/roster_list_url先比照XOOPS慣例補上嘗試，仍未逐頁人工核對"
     },
     {
       "id": "kjjhs_jh",
@@ -154,8 +164,11 @@
       "calendar_url": "https://www.chjhs.tyc.edu.tw/modules/tadnews/",
       "calendar_format": "html_or_pdf_mixed",
       "roster_list_url": "https://www.chjhs.tyc.edu.tw/modules/tadnews/",
+      "known_roster_article_urls": [
+        "https://www.chjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=12155"
+      ],
       "verified": true,
-      "notes": "行事曆以公告文章形式(HTML內文+PDF/DOCX附件混合)發布，每學期一次。另有舊站 old.chjhs.tyc.edu.tw 需避免誤抓過期資料。注意勿與青溪國中(www.chjh.tyc.edu.tw，少一個s)搞混"
+      "notes": "行事曆以公告文章形式(HTML內文+PDF/DOCX附件混合)發布，每學期一次。另有舊站 old.chjhs.tyc.edu.tw 需避免誤抓過期資料。注意勿與青溪國中(www.chjh.tyc.edu.tw，少一個s)搞混。known_roster_article_urls經WebSearch確認：nsn=12155「中興國中114學年 新生編班名冊 暨 導師編配結果」，標題直接寫明「名冊」，114學年度為相對最新，最有希望含真實遮罩姓名"
     },
     {
       "id": "jgjhs_jh",
@@ -165,11 +178,14 @@
       "district": "桃園區",
       "base_url": "https://www.jgjhs.tyc.edu.tw/",
       "cms_type": "xoops",
-      "calendar_url": null,
-      "calendar_format": "unknown",
+      "calendar_url": "https://www.jgjhs.tyc.edu.tw/modules/tad_cal/",
+      "calendar_format": "html_tad_cal_guess",
       "roster_list_url": "https://www.jgjhs.tyc.edu.tw/modules/tadnews/",
+      "known_roster_article_urls": [
+        "http://www.jgjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=3906"
+      ],
       "verified": false,
-      "notes": "XOOPS但URL參數命名與其他校不同(?show_uid=、?uid= 而非?nsn=)，推測是較舊版本/客製化版本，通用XOOPS parser可能不完全相容，需個別測試"
+      "notes": "XOOPS但URL參數命名與其他校不同(?show_uid=、?uid= 而非?nsn=)，推測是較舊版本/客製化版本，通用XOOPS parser可能不完全相容，需個別測試。WebSearch確認域名存活且nsn=參數也能用(nsn=3906「本校110學年度新生編班作業說明」)，calendar_url原本未設定，比照同款XOOPS慣例補上tad_cal猜測路徑"
     },
     {
       "id": "tcjhs_jh",
@@ -182,8 +198,11 @@
       "calendar_url": "https://www.tcjhs.tyc.edu.tw/modules/tadnews/page.php?ncsn=15",
       "calendar_format": "unknown",
       "roster_list_url": "https://www.tcjhs.tyc.edu.tw/modules/tadnews/",
+      "known_roster_article_urls": [
+        "https://www.tcjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2133"
+      ],
       "verified": false,
-      "notes": "行事曆分類頁確認存在(ncsn=15)但實際格式(PDF/圖片/HTML表格)未核對"
+      "notes": "行事曆分類頁確認存在(ncsn=15)但實際格式(PDF/圖片/HTML表格)未核對。known_roster_article_urls經WebSearch確認：nsn=2133「本校111學年度七年級新生正式編班名單及導師名單」"
     },
     {
       "id": "dyes_es",
@@ -191,13 +210,13 @@
       "short_name": "大有國小",
       "level": "elementary",
       "district": "桃園區",
-      "base_url": "http://www.dyes.tyc.edu.tw/",
-      "cms_type": "asp_legacy",
+      "base_url": "https://cms.dyes.tyc.edu.tw/",
+      "cms_type": "unknown",
       "calendar_url": null,
       "calendar_format": "unknown",
       "roster_list_url": null,
       "verified": false,
-      "notes": "唯一疑似舊式Classic ASP系統的國小(*.asp?id={GUID})，同時有cms.dyes.tyc.edu.tw、ww2.dyes.tyc.edu.tw等多網域並存，何者為現行正式站無法單靠搜尋確認。注意同名陷阱：www.dyps.cyc.edu.tw是嘉義縣同名校，非本校。列為第一優先人工複查對象"
+      "notes": "唯一疑似舊式Classic ASP系統的國小(*.asp?id={GUID})，同時有cms.dyes.tyc.edu.tw、ww2.dyes.tyc.edu.tw等多網域並存。原本設定的www.dyes.tyc.edu.tw連續多次實跑都連線逾時(ConnectTimeout)，確認是真的連不上而非暫時性問題；WebSearch確認cms.dyes.tyc.edu.tw是同校內容(相同校名/聯絡電話)且能被搜尋引擎正常索引，改用這個網域碰運氣，cms_type未知，交由generic_scraper關鍵字連結策略處理。注意同名陷阱：www.dyps.cyc.edu.tw是嘉義縣同名校，非本校。仍列為優先人工複查對象"
     },
     {
       "id": "twes_es",
@@ -230,8 +249,11 @@
       "calendar_url": "https://www.zjes.tyc.edu.tw/modules/tad_cal/",
       "calendar_format": "html_tad_cal",
       "roster_list_url": "https://www.zjes.tyc.edu.tw/modules/tadnews/",
+      "known_roster_article_urls": [
+        "https://www.zjes.tyc.edu.tw/modules/tadnews/index.php?nsn=4509"
+      ],
       "verified": true,
-      "notes": "行事曆確認為tad_cal，範例event.php?sn=1014。編班公告頁未找到，推測與慈文同模式"
+      "notes": "行事曆確認為tad_cal，範例event.php?sn=1014。known_roster_article_urls經WebSearch確認：nsn=4509「公告本校111學年度一、三、五年級常態編班學生名冊及導師名單」，且搜尋摘要明確提到「為保護學生隱私，網路上公佈之學生名冊，學生姓名皆有隱藏，完整姓名於本校公佈欄公告」——確認此校網站確實會遮罩姓名"
     },
     {
       "id": "pmes_es",
@@ -271,10 +293,13 @@
       "cms_type": "xoops",
       "calendar_url": "https://www.csps.tyc.edu.tw/modules/tad_cal/",
       "calendar_format": "html_tad_cal",
-      "roster_list_url": null,
+      "roster_list_url": "https://www.csps.tyc.edu.tw/modules/tadnews/",
       "roster_source_note": "班級-導師無統一對照表，需從班級網站子系統 class.csps.tyc.edu.tw/<編號>/ 逐班爬取標題間接推知，工程量較大",
+      "known_roster_article_urls": [
+        "https://www2.csps.tyc.edu.tw/modules/tadnews/index.php?nsn=10043"
+      ],
       "verified": true,
-      "notes": "行事曆確認為tad_cal。另有www2.csps.tyc.edu.tw並存，需先人工確認何者為主站避免重複/過期資料"
+      "notes": "行事曆確認為tad_cal。另有www2.csps.tyc.edu.tw並存，需先人工確認何者為主站避免重複/過期資料。roster_list_url原本未設定(直接被跳過)，WebSearch確認www.csps.tyc.edu.tw的/modules/tadnews/確實存在(教務處/學務處/總務處/輔導室等公告頁)，先補上嘗試；known_roster_article_urls是在www2子網域確認到的真實編班公告(nsn=10043「112學年度第二次編班結果公告」)"
     },
     {
       "id": "typs_es",
@@ -288,8 +313,11 @@
       "calendar_format": "html_tad_cal",
       "roster_list_url": "https://www.typs.tyc.edu.tw/modules/tadnews/",
       "roster_keyword_examples": ["新生暨三、五年級學生公開編班暨導師編配作業公告"],
+      "known_roster_article_urls": [
+        "https://www.typs.tyc.edu.tw/modules/tadnews/index.php?nsn=5051"
+      ],
       "verified": true,
-      "notes": "行政區實際為八德區，非桃園區(使用者已確認沿用此校)。頁尾明確標示XOOPS由資訊組架設維護，是CMS確認度最高的樣本之一"
+      "notes": "行政區實際為八德區，非桃園區(使用者已確認沿用此校)。頁尾明確標示XOOPS由資訊組架設維護，是CMS確認度最高的樣本之一。known_roster_article_urls經WebSearch確認：nsn=5051「大勇國小114學年度一、三、五年級常態編班作業結果」"
     },
     {
       "id": "yes_es",
@@ -303,8 +331,11 @@
       "calendar_format": "html_tad_cal_guess",
       "roster_list_url": "https://www.yes.tyc.edu.tw/xoops/modules/tadnews/page.php?ncsn=8&nsn=11",
       "roster_source_note": "班級網頁子系統 xoops/modules/tad_web/index.php?WebID=<編號> 逐班呈現",
+      "known_roster_article_urls": [
+        "https://www.yes.tyc.edu.tw/xoops/modules/tadnews/index.php?ncsn=1&nsn=6435"
+      ],
       "verified": true,
-      "notes": "本次唯一網址明確包含/xoops/字樣的學校，CMS本體100%確認，但路徑多了/xoops/前綴，爬蟲需注意"
+      "notes": "本次唯一網址明確包含/xoops/字樣的學校，CMS本體100%確認，但路徑多了/xoops/前綴，爬蟲需注意。原roster_list_url(ncsn=8&nsn=11)實跑證實抓不到有效內容；known_roster_article_urls經WebSearch重新確認：ncsn=1&nsn=6435「永順國小113學年度常態編班暨導師編配作業1、3、5年級編班名單」"
     },
     {
       "id": "spps_es",
