@@ -26,6 +26,7 @@ from .http_utils import polite_get
 from .pdf_utils import (
     extract_pdf_text,
     first_masked_context,
+    masked_name_samples,
     parse_class_teacher_pairs,
     parse_masked_student_roster,
     parse_single_grade_from_title,
@@ -38,14 +39,17 @@ MAX_EVENT_DETAIL_FETCHES = 60  # 單校最多下載幾篇事件詳細頁，避�
 MAX_NEWS_ARTICLES_TO_SCAN = 40  # 公告列表最多掃描幾篇標題找編班/導師關鍵字
 MAX_CATEGORY_PAGES_TO_TRY = 3  # 公告列表首頁掃不到文章連結時，往下一層分類頁最多試幾個
 MAX_PDF_ATTACHMENTS_PER_ARTICLE = 5  # 單篇公告最多下載幾個PDF附件，避免不相關附件拖慢單校處理時間
+MAX_EXTRA_ROSTER_LIST_PAGES = 2  # 編班關鍵字在公告列表首頁掃不到時，最多再往後翻幾頁分頁（start=N）
+                                  # ——編班公告每學年才發一次，很容易被後續公告擠出首頁
 
-ROSTER_KEYWORDS = ["編班", "導師編配", "導師名單", "班級編制", "新生名單"]
+ROSTER_KEYWORDS = ["編班", "導師編配", "導師名單", "班級編制", "新生名單", "分班"]
 # 有些學校（例如慈文國中、文昌國中）沒有tad_cal互動式行事曆，而是用公告夾帶PDF發布，
 # 需要靠這組關鍵字掃描公告標題找出來，當作 tad_cal 策略失敗時的備援
 CALENDAR_ANNOUNCEMENT_KEYWORDS = ["行事曆", "校歷", "行事簡曆", "行事日曆"]
 EVENT_LINK_RE = re.compile(r"event\.php\?sn=\d+")
 NEWS_ARTICLE_LINK_RE = re.compile(r"(index|page)\.php\?.*\b(nsn|show_uid|uid)=\d+")
 CATEGORY_LINK_RE = re.compile(r"\bncsn=\d+")
+PAGINATION_LINK_RE = re.compile(r"[?&]start=\d+")
 SCHOOL_YEAR_RE = re.compile(r"(\d{2,3})\s*學年度")
 
 
@@ -204,23 +208,80 @@ class XoopsScraper(BaseSchoolScraper):
 
         return [], list_url
 
+    def _extract_pagination_hrefs(self, list_page_url: str) -> list[str]:
+        """從公告列表頁找「下一頁」之類的分頁連結（XOOPS慣例用 start=N 參數）。
+        編班公告通常整個學年只發一次，掃描首頁常態編班40篇上限抓不到時，
+        很可能是被之後累積的其他公告擠到後面分頁去了，往後多翻幾頁再試。"""
+        resp = self._safe_get(list_page_url)
+        if resp is None:
+            return []
+        soup = BeautifulSoup(resp.text, "lxml")
+        hrefs = []
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if PAGINATION_LINK_RE.search(href):
+                hrefs.append(urljoin(list_page_url, href))
+        return list(dict.fromkeys(hrefs))
+
+    def _fetch_known_article(self, url: str) -> tuple[str, str] | None:
+        """直接抓取研究階段已經人工確認過的公告連結（schools.json 的
+        known_roster_article_urls），不受限於列表頁掃描範圍、也不需要標題關鍵字
+        比對——這個URL本身就是可信來源，比再靠關鍵字掃描去猜更準確。"""
+        resp = self._safe_get(url)
+        if resp is None:
+            return None
+        soup = BeautifulSoup(resp.text, "lxml")
+        title_tag = soup.find(["h1", "h2", "h3"]) or soup.find("title")
+        title = title_tag.get_text(strip=True) if title_tag else url
+        return url, title
+
     # ---------- 班級編制表（編班暨導師編配公告） ----------
     def scrape_roster(self) -> ScrapeOutcome:
         list_url = self.school.get("roster_list_url")
-        if not list_url:
+        known_urls = list(self.school.get("known_roster_article_urls") or [])
+
+        if not list_url and not known_urls:
             return ScrapeOutcome(target="roster", status="skipped", message="schools.json 未設定 roster_list_url")
 
-        candidate_links, used_url = self._discover_article_links(list_url)
+        # roster_list_url 研究階段有時直接指向已知的公告本身（例如永順國小），不是列表頁；
+        # 這種情況若當成列表頁去找「頁面裡的文章連結」，其實是在找該公告頁面上的其他相關連結，
+        # 抓不到真正要的內容——直接把它併入 known_urls 當成已知公告處理才對
+        if list_url and NEWS_ARTICLE_LINK_RE.search(list_url):
+            known_urls.append(list_url)
+            list_url = None
 
-        keyword_matches = [
-            (url, text) for url, text in candidate_links[:MAX_NEWS_ARTICLES_TO_SCAN]
-            if any(kw in text for kw in ROSTER_KEYWORDS)
+        keyword_matches: list[tuple[str, str]] = []
+        scanned_count = 0
+        used_url = list_url or "(僅使用 known_roster_article_urls)"
+        if list_url:
+            candidate_links, used_url = self._discover_article_links(list_url)
+            scanned_count = min(len(candidate_links), MAX_NEWS_ARTICLES_TO_SCAN)
+            keyword_matches = [
+                (url, text) for url, text in candidate_links[:MAX_NEWS_ARTICLES_TO_SCAN]
+                if any(kw in text for kw in ROSTER_KEYWORDS)
+            ]
+            if not keyword_matches:
+                # 首頁掃不到，往後多翻幾頁分頁再試——編班公告常態編班年級每年才發一次，
+                # 很容易被後續累積的其他公告擠出列表首頁
+                for page_url in self._extract_pagination_hrefs(used_url)[:MAX_EXTRA_ROSTER_LIST_PAGES]:
+                    more_links = self._extract_article_links(page_url)
+                    scanned_count += min(len(more_links), MAX_NEWS_ARTICLES_TO_SCAN)
+                    keyword_matches += [
+                        (url, text) for url, text in more_links[:MAX_NEWS_ARTICLES_TO_SCAN]
+                        if any(kw in text for kw in ROSTER_KEYWORDS)
+                    ]
+
+        known_candidates = [c for c in (self._fetch_known_article(u) for u in known_urls) if c]
+        known_candidate_urls = {url for url, _ in known_candidates}
+        # 已知連結（研究階段人工確認過）優先信任；關鍵字掃描結果補充，避免重複處理同一篇
+        all_candidates = known_candidates + [
+            (url, text) for url, text in keyword_matches if url not in known_candidate_urls
         ]
 
-        if not keyword_matches:
+        if not all_candidates:
             return ScrapeOutcome(
                 target="roster", status="failed",
-                message=f"在 {used_url} 掃描了 {min(len(candidate_links), MAX_NEWS_ARTICLES_TO_SCAN)} 篇公告標題，"
+                message=f"在 {used_url} 掃描了 {scanned_count} 篇公告標題，"
                         f"沒有找到含「編班」「導師編配」等關鍵字的公告，可能該公告目前不在第一頁或用詞不同",
             )
 
@@ -229,7 +290,7 @@ class XoopsScraper(BaseSchoolScraper):
         seen_roster_classes: set[tuple[str, int, int]] = set()  # 同班名單以最先掃到的公告（最新）為準
         parse_failures = []
         unattributed_masked_total = 0
-        for article_url, title in keyword_matches:
+        for article_url, title in all_candidates:
             resp = self._safe_get(article_url)
             if resp is None:
                 parse_failures.append(article_url)
@@ -244,7 +305,7 @@ class XoopsScraper(BaseSchoolScraper):
                 school_year = m.group(1)
 
             pairs = parse_class_teacher_pairs(article_text)
-            texts_for_roster = [article_text]
+            texts_for_roster = [(article_text, article_url)]
 
             pdf_links = [
                 urljoin(article_url, a["href"])
@@ -259,7 +320,7 @@ class XoopsScraper(BaseSchoolScraper):
                     continue
                 pdf_text = extract_pdf_text(pdf_resp.content)
                 pairs.extend(parse_class_teacher_pairs(pdf_text))
-                texts_for_roster.append(pdf_text)
+                texts_for_roster.append((pdf_text, pdf_url))
                 if not school_year:
                     m = SCHOOL_YEAR_RE.search(pdf_text)
                     if m:
@@ -285,15 +346,20 @@ class XoopsScraper(BaseSchoolScraper):
             # 「第N班」簡寫式標頭需要年級，從公告標題推斷（僅標題明確單一年級/新生時才用）
             default_grade = parse_single_grade_from_title(title, self.school.get("level"))
             diagnostic_logged = False
-            for text in texts_for_roster:
+            for text, text_source in texts_for_roster:
                 classes, unattributed = parse_masked_student_roster(text, default_grade=default_grade)
                 unattributed_masked_total += unattributed
                 if unattributed and not classes and not diagnostic_logged:
-                    # 名單完全無法歸屬時記錄前文樣本，供下次依真實格式修正解析規則
+                    # 名單完全無法歸屬時記錄實際比對到的字串樣本＋來源，供下次判斷
+                    # 是真實姓名格式沒吃到、還是不相關PDF附件造成的誤判
                     # （樣本中的姓名本來就是學校遮罩過的版本）
+                    samples = masked_name_samples(text)
                     snippet = first_masked_context(text)
-                    if snippet:
-                        logger.info("[%s] 未歸屬遮罩名單的前文樣本: %r", self.school["id"], snippet)
+                    if samples:
+                        logger.info(
+                            "[%s] 未歸屬遮罩名單，來源=%s，比對樣本=%s，前文=%r",
+                            self.school["id"], text_source, samples, snippet,
+                        )
                         diagnostic_logged = True
                 for grade, class_number, names in classes:
                     key = (school_year, grade, class_number)
@@ -315,7 +381,7 @@ class XoopsScraper(BaseSchoolScraper):
         if not all_assignments and not all_student_entries:
             return ScrapeOutcome(
                 target="roster", status="partial",
-                message=f"找到 {len(keyword_matches)} 篇疑似編班公告，但都解析不出班級-導師配對或遮罩學生名單，"
+                message=f"找到 {len(all_candidates)} 篇疑似編班公告，但都解析不出班級-導師配對或遮罩學生名單，"
                         f"可能是公告格式與預期的regex不符，需要人工檢查該公告原文/PDF格式"
                         + (f"（另有 {unattributed_masked_total} 個遮罩姓名因無法歸屬班級而未收）"
                            if unattributed_masked_total else ""),
@@ -323,7 +389,7 @@ class XoopsScraper(BaseSchoolScraper):
 
         status = "success" if not parse_failures else "partial"
         message = (
-            f"從 {len(keyword_matches)} 篇公告中解析出 {len(all_assignments)} 筆班級-導師資料、"
+            f"從 {len(all_candidates)} 篇公告中解析出 {len(all_assignments)} 筆班級-導師資料、"
             f"{len(all_student_entries)} 筆遮罩學生名單（{len(seen_roster_classes)} 個班級）"
         )
         if unattributed_masked_total:

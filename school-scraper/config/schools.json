@@ -21,10 +21,10 @@
       "cms_type": "nss",
       "calendar_url": null,
       "calendar_format": "unknown",
-      "roster_list_url": null,
+      "roster_list_url": "https://www.tyjh.tyc.edu.tw/nss/p/Administration",
       "roster_source_note": "各班課表PDF右上角欄位含導師姓名，需逐班下載拼湊，例如 /uploads/1676627220423cB7k8m2b.pdf",
       "verified": false,
-      "notes": "NSS 系統代表校之一，路徑含 /nss/main/freeze/{hash}/{token}/{id} 或 /nss/p/xxx，非XOOPS，需另開發解析邏輯，優先查是否有JSON API"
+      "notes": "NSS 系統代表校之一，路徑含 /nss/main/freeze/{hash}/{token}/{id} 或 /nss/p/xxx，非XOOPS，需另開發解析邏輯，優先查是否有JSON API。roster_list_url是比照同款NSS平台的文山國小(/nss/p/Administration)、西門國小已確認可行的路徑猜測，尚未人工核對，原本完全沒有網址設定導致roster直接被略過，先嘗試總比略過好"
     },
     {
       "id": "cgjhs_jh",
@@ -92,9 +92,9 @@
       "cms_type": "nss",
       "calendar_url": null,
       "calendar_format": "unknown",
-      "roster_list_url": null,
+      "roster_list_url": "http://www.ffjh.tyc.edu.tw/nss/p/Administration",
       "verified": false,
-      "notes": "主站疑似NSS系統(/nss/main/freeze/...)；另有子網域 class.ffjh.tyc.edu.tw 用ASP legacy系統(TextView.asp)，可能是班級網頁子系統，技術棧最混雜的學校之一，需分開處理兩套系統"
+      "notes": "主站疑似NSS系統(/nss/main/freeze/...)；另有子網域 class.ffjh.tyc.edu.tw 用ASP legacy系統(TextView.asp)，可能是班級網頁子系統，技術棧最混雜的學校之一，需分開處理兩套系統。roster_list_url是比照同款NSS平台文山國小已確認可行的路徑猜測，尚未人工核對，原本完全沒有網址設定導致roster直接被略過，先嘗試總比略過好"
     },
     {
       "id": "tdjhs_jh",
@@ -136,8 +136,12 @@
       "calendar_format": "unknown",
       "roster_list_url": "https://www.kjjhs.tyc.edu.tw/modules/tadnews/",
       "roster_keyword_examples": ["編班暨導師編配名單結果", "編班暨導師編配作業"],
+      "known_roster_article_urls": [
+        "https://www.kjjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=13416",
+        "https://www.kjjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=13357"
+      ],
       "verified": true,
-      "notes": "本次調查中唯一明確找到「編班暨導師編配」公告範例的學校，是roster爬蟲關鍵字比對策略的最佳參考範本(nsn=13416, nsn=13357)"
+      "notes": "本次調查中唯一明確找到「編班暨導師編配」公告範例的學校，是roster爬蟲關鍵字比對策略的最佳參考範本(nsn=13416, nsn=13357)。實跑發現這兩篇已被擠出公告列表首頁40篇關鍵字掃描範圍外，改用known_roster_article_urls直接抓取"
     },
     {
       "id": "chjhs_jh",
@@ -208,8 +212,12 @@
       "roster_list_url": "https://www.twes.tyc.edu.tw/modules/tadnews/",
       "roster_keyword_examples": ["常態編班暨導師編配作業結果"],
       "roster_note": "只公告1、3、5年級（台灣國小常態編班慣例），2、4、6年級需延續前一學年度資料推算",
+      "known_roster_article_urls": [
+        "https://www.twes.tyc.edu.tw/modules/tadnews/index.php?nsn=1052",
+        "https://www.twes.tyc.edu.tw/modules/tadnews/index.php?nsn=3050"
+      ],
       "verified": true,
-      "notes": "行事曆確認為XOOPS tad_cal動態HTML；編班公告範例：nsn=1052(112學年度)、nsn=3050(113學年度)"
+      "notes": "行事曆確認為XOOPS tad_cal動態HTML；編班公告範例：nsn=1052(112學年度)、nsn=3050(113學年度)。實跑發現關鍵字掃描抓到的公告其實是不相關的疏散地圖PDF附件，改用known_roster_article_urls直接抓取這兩篇已確認過的真實編班公告"
     },
     {
       "id": "zjes_es",

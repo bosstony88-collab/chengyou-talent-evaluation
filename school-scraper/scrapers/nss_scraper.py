@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup
 from .base import BaseSchoolScraper, ClassAssignment, MaskedStudentEntry, ScrapeOutcome
 from .heuristics import extract_events_heuristic
 from .http_utils import polite_get
-from .pdf_utils import parse_class_teacher_pairs, parse_masked_student_roster
+from .pdf_utils import masked_name_samples, parse_class_teacher_pairs, parse_masked_student_roster
 
 logger = logging.getLogger("school_scraper")
 
@@ -114,9 +114,15 @@ class NssScraper(BaseSchoolScraper):
                     )
 
         if (not pairs and not student_entries) or not school_year:
+            # NSS頁面結構跟XOOPS不同（常是表格式SPA渲染），常見原因是資料在<table>欄位
+            # 而非"一年1班 導師 王小明"這種連續文字，記錄實際比對到的遮罩姓名樣本
+            # （若有）供下次依真實格式調整解析規則
+            samples = masked_name_samples(text)
+            diag = f"（比對到的遮罩姓名樣本：{samples}）" if samples else ""
             return ScrapeOutcome(
                 target="roster", status="partial",
-                message=f"{note}；頁面含編班相關關鍵字，但抓不到完整的班級-導師配對/遮罩名單或學年度，需人工核對格式",
+                message=f"{note}；頁面含編班相關關鍵字，但抓不到完整的班級-導師配對/遮罩名單或學年度，"
+                        f"需人工核對格式{diag}",
             )
 
         assignments = [

@@ -492,6 +492,148 @@ def test_xoops_roster_with_masked_students():
           all("○" in e.masked_name or "Ｏ" in e.masked_name for e in outcome.student_entries))
 
 
+def test_masked_roster_requires_ban_character():
+    print("test_masked_roster_requires_ban_character")
+    from scrapers.pdf_utils import parse_masked_student_roster
+
+    # 第6次實跑後仍發現慈文國小96個遮罩姓名「未歸屬」，追查發現來源是疏散地圖PDF
+    # （東○○一、西○二 這類房間編號巧合符合遮罩pattern）。這類文字完全沒有「班」字，
+    # 加上內容相關性過濾後應直接略過，不產生任何未歸屬統計，避免污染診斷log。
+    evac_map_text = "避難空間配置圖 東○○一 電機房 樓梯 集會室 西○二 一F 室"
+    classes, unattributed = parse_masked_student_roster(evac_map_text)
+    check("沒有「班」字的文字直接略過，不產生未歸屬統計",
+          classes == [] and unattributed == 0, f"classes={classes} unattributed={unattributed}")
+
+    real_text = "一年1班 陳○宇 林○彤"
+    classes2, unattributed2 = parse_masked_student_roster(real_text)
+    check("真正的班級名單不受影響", classes2 == [(1, 1, ["陳○宇", "林○彤"])], str(classes2))
+
+
+def test_masked_name_samples():
+    print("test_masked_name_samples")
+    from scrapers.pdf_utils import masked_name_samples
+
+    text = "一年1班 陳○宇 林○彤 陳○宇"
+    samples = masked_name_samples(text, limit=5)
+    check("回傳去重後的比對樣本，供診斷log快速判斷真偽", samples == ["陳○宇", "林○彤"], str(samples))
+
+
+def test_known_roster_article_urls():
+    print("test_known_roster_article_urls")
+    # 模擬會稽國中/慈文國小的狀況：schools.json研究階段已經人工確認過真實的編班公告連結
+    # (known_roster_article_urls)，但該連結因為分頁/排序不在關鍵字掃描範圍內。
+    # 驗證這種已知連結能不受限於列表頁掃描直接被抓取解析。
+    news_list_html = """
+    <html><body>
+      <a href="index.php?nsn=999">校慶運動會花絮</a>
+    </body></html>
+    """
+    known_article_html = """
+    <html><body>
+      <h1>112學年度編班暨導師編配名單結果</h1>
+      <p>一年1班 導師 王小明　學生名單：陳○宇 林○彤</p>
+    </body></html>
+    """
+    responses = {
+        "https://example.tyc.edu.tw/modules/tadnews/": news_list_html,
+        "https://example.tyc.edu.tw/modules/tadnews/index.php?nsn=13416": known_article_html,
+    }
+
+    def fake_get(session, url, **kwargs):
+        html = responses.get(url)
+        return _fake_response(html) if html is not None else _fake_response("", status=404)
+
+    school = {
+        "id": "test_school", "short_name": "測試國中", "cms_type": "xoops",
+        "calendar_url": None,
+        "roster_list_url": "https://example.tyc.edu.tw/modules/tadnews/",
+        "known_roster_article_urls": ["https://example.tyc.edu.tw/modules/tadnews/index.php?nsn=13416"],
+    }
+    with patch("scrapers.xoops_scraper.polite_get", side_effect=fake_get):
+        scraper = XoopsScraper(school, session=MagicMock())
+        outcome = scraper.scrape_roster()
+
+    check("known_roster_article_urls不受限關鍵字掃描仍能解析", outcome.status == "success", outcome.message)
+    check("班級-導師資料正確",
+          len(outcome.class_assignments) == 1 and outcome.class_assignments[0].teacher_name == "王小明",
+          str(outcome.class_assignments))
+    check("遮罩學生名單也一併解析出", len(outcome.student_entries) == 2, str(outcome.student_entries))
+
+
+def test_roster_list_url_pointing_directly_to_article():
+    print("test_roster_list_url_pointing_directly_to_article")
+    # 模擬永順國小的狀況：roster_list_url本身就是已知公告網址(page.php?ncsn=8&nsn=11)，
+    # 不是列表頁——不該被當成「列表頁裡找文章連結」，而要直接當成已知公告處理
+    article_html = """
+    <html><body>
+      <h1>113學年度新生編班公告</h1>
+      <p>一年1班 導師 陳小美　學生名單：張○豪 黃○庭</p>
+    </body></html>
+    """
+    responses = {
+        "https://example.tyc.edu.tw/modules/tadnews/page.php?ncsn=8&nsn=11": article_html,
+    }
+
+    def fake_get(session, url, **kwargs):
+        html = responses.get(url)
+        return _fake_response(html) if html is not None else _fake_response("", status=404)
+
+    school = {
+        "id": "test_school", "short_name": "測試國小", "cms_type": "xoops",
+        "calendar_url": None,
+        "roster_list_url": "https://example.tyc.edu.tw/modules/tadnews/page.php?ncsn=8&nsn=11",
+    }
+    with patch("scrapers.xoops_scraper.polite_get", side_effect=fake_get):
+        scraper = XoopsScraper(school, session=MagicMock())
+        outcome = scraper.scrape_roster()
+
+    check("roster_list_url本身是文章網址時能直接解析", outcome.status == "success", outcome.message)
+    check("班級-導師資料正確", len(outcome.class_assignments) == 1, str(outcome.class_assignments))
+    check("遮罩學生名單正確", len(outcome.student_entries) == 2, str(outcome.student_entries))
+
+
+def test_roster_keyword_pagination_fallback():
+    print("test_roster_keyword_pagination_fallback")
+    # 模擬會稽國中在真實跑的時候發生的狀況：公告列表首頁40篇掃不到編班關鍵字
+    # （被之後累積的其他公告擠到後面分頁去了），需要跟著分頁連結(start=N)往後找
+    page1_html = """
+    <html><body>
+      <a href="index.php?nsn=801">校園安全演練紀實</a>
+      <a href="index.php?start=20">下一頁</a>
+    </body></html>
+    """
+    page2_html = """
+    <html><body>
+      <a href="index.php?nsn=701">113學年度編班暨導師編配結果</a>
+    </body></html>
+    """
+    article_html = "<html><body><h1>113學年度編班暨導師編配結果</h1><p>一年1班 導師 王小明</p></body></html>"
+
+    responses = {
+        "https://example.tyc.edu.tw/modules/tadnews/": page1_html,
+        "https://example.tyc.edu.tw/modules/tadnews/index.php?start=20": page2_html,
+        "https://example.tyc.edu.tw/modules/tadnews/index.php?nsn=701": article_html,
+    }
+
+    def fake_get(session, url, **kwargs):
+        html = responses.get(url)
+        return _fake_response(html) if html is not None else _fake_response("", status=404)
+
+    school = {
+        "id": "test_school", "short_name": "測試國中", "cms_type": "xoops",
+        "calendar_url": None,
+        "roster_list_url": "https://example.tyc.edu.tw/modules/tadnews/",
+    }
+    with patch("scrapers.xoops_scraper.polite_get", side_effect=fake_get):
+        scraper = XoopsScraper(school, session=MagicMock())
+        outcome = scraper.scrape_roster()
+
+    check("首頁掃不到關鍵字時會跟著分頁連結往後找", outcome.status == "success", outcome.message)
+    check("分頁上找到的編班資料正確",
+          len(outcome.class_assignments) == 1 and outcome.class_assignments[0].teacher_name == "王小明",
+          str(outcome.class_assignments))
+
+
 if __name__ == "__main__":
     test_date_parsing()
     test_class_teacher_regex()
@@ -508,5 +650,10 @@ if __name__ == "__main__":
     test_bare_class_header_with_default_grade()
     test_student_upsert_privacy_guard()
     test_xoops_roster_with_masked_students()
+    test_masked_roster_requires_ban_character()
+    test_masked_name_samples()
+    test_known_roster_article_urls()
+    test_roster_list_url_pointing_directly_to_article()
+    test_roster_keyword_pagination_fallback()
     print(f"\n{PASS} passed, {FAIL} failed")
     sys.exit(1 if FAIL else 0)

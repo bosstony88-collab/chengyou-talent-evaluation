@@ -113,6 +113,18 @@ def first_masked_context(text: str, before: int = 120, after: int = 40) -> str |
     return normalized[max(0, m.start() - before): m.end() + after]
 
 
+def masked_name_samples(text: str, limit: int = 5) -> list[str]:
+    """回傳文字中比對到的遮罩姓名樣本（去重、最多limit筆），供診斷log直接判斷
+    是真實姓名還是誤判（例如房間編號、圖例文字），比只看前後文更快確認。"""
+    seen: list[str] = []
+    for m in _MASKED_NAME_RE.finditer(text.translate(_FULLWIDTH_TRANS)):
+        if m.group() not in seen:
+            seen.append(m.group())
+        if len(seen) >= limit:
+            break
+    return seen
+
+
 def extract_pdf_text(pdf_bytes: bytes) -> str:
     text_parts = []
     try:
@@ -158,6 +170,11 @@ def parse_masked_student_roster(
     同一班出現多個標頭（例如導師行與名單表各一次）時會合併名單並保持出現順序。
     """
     text = text.translate(_FULLWIDTH_TRANS)
+    if "班" not in text:
+        # 完全沒有「班」字的文字不可能是班級名單（常見案例：疏散避難地圖、行政公告等
+        # 跟編班公告貼在同一篇但不相關的PDF附件），直接略過，避免把巧合符合遮罩
+        # pattern的房間編號、圖例文字誤算進「未歸屬」統計、污染診斷log的參考價值
+        return [], 0
     headers = list(_CLASS_HEADER_RE.finditer(text))
     if not headers:
         return [], len(_MASKED_NAME_RE.findall(text))
