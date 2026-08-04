@@ -28,6 +28,7 @@ from .pdf_utils import (
     first_masked_context,
     masked_name_samples,
     parse_class_teacher_pairs,
+    parse_class_teacher_table,
     parse_masked_student_roster,
     parse_single_grade_from_title,
 )
@@ -309,6 +310,7 @@ class XoopsScraper(BaseSchoolScraper):
                 school_year = m.group(1)
 
             pairs = parse_class_teacher_pairs(article_text)
+            pairs.extend(parse_class_teacher_table(article_text))
             texts_for_roster = [(article_text, article_url)]
 
             pdf_links = [
@@ -329,6 +331,7 @@ class XoopsScraper(BaseSchoolScraper):
                     pdf_text = extract_pdf_text(pdf_resp.content)
                     pdf_text_cache[pdf_url] = pdf_text
                 pairs.extend(parse_class_teacher_pairs(pdf_text))
+                pairs.extend(parse_class_teacher_table(pdf_text))
                 texts_for_roster.append((pdf_text, pdf_url))
                 if not school_year:
                     m = SCHOOL_YEAR_RE.search(pdf_text)

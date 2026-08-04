@@ -50,6 +50,44 @@ _CLASS_TEACHER_PATTERN = re.compile(
     r"(?=[\s　，。、]|$|[一二三四五六七八九0-9]{1,2}\s*年)"
 )
 
+# 「班級 導師」直排表格格式（第9次實跑於同德國中發現，跟散文式「一年1班 導師 王小明」不同）：
+#   班級 導師
+#   701 國文 新進教師1
+#   702 林○偉
+#   706 理化 新進教師
+# 班級代碼是「年級(1碼)+班號(2碼)」直接相連（701=七年級1班），未定案的導師會用「[科目] 新進教師」
+# 佔位，不是真的姓名，需濾掉；只在偵測到「班級」「導師」表頭時才啟用這組pattern，避免把其他
+# 文字中巧合出現的3位數字（例如「115學年度」的115）誤判成班級代碼
+_CLASS_TEACHER_TABLE_HEADER_RE = re.compile(r"班級\s*導師")
+# 姓名欄擷取上限4字（跟_MASKED_NAME_RE對姓名長度的假設一致），避免抓到後面整段不相關文字
+_CLASS_TEACHER_TABLE_ROW_RE = re.compile(r"(?<![0-9])([1-9])(0[1-9]|1[0-9]|2[0-9])(?![0-9])\s+([^\s\d]{1,4})")
+# 用 startswith 而非精確比對，因為擷取到的內容可能是「學年度公告」這種被截斷的一段，
+# 只要開頭是這些非姓名詞彙就該排除
+_TABLE_ROW_NON_NAME_PREFIXES = (
+    "國文", "英文", "數學", "社會", "公民", "歷史", "地理", "理化", "生物", "地科", "健教", "健康",
+    "體育", "音樂", "美術", "家政", "童軍", "綜合", "輔導", "生涯", "表藝", "資訊", "科技", "國防",
+    "學年", "公告", "編班", "導師", "班級", "教師", "姓名",
+)
+_TABLE_ROW_PLACEHOLDER_KEYWORDS = ("新進教師", "代理教師", "代理", "待定", "從缺", "尚未")
+
+
+def parse_class_teacher_table(text: str) -> list[tuple[int, int, str]]:
+    """解析「班級 導師」直排表格格式，回傳 [(grade, class_number, teacher_name), ...]。
+    未定案導師的佔位文字（如「國文 新進教師1」）不算姓名，不收錄。"""
+    text = text.translate(_FULLWIDTH_TRANS)
+    header = _CLASS_TEACHER_TABLE_HEADER_RE.search(text)
+    if not header:
+        return []
+    results = []
+    for m in _CLASS_TEACHER_TABLE_ROW_RE.finditer(text[header.end():]):
+        grade = int(m.group(1))
+        class_number = int(m.group(2))
+        content = m.group(3)
+        if content.startswith(_TABLE_ROW_NON_NAME_PREFIXES) or any(kw in content for kw in _TABLE_ROW_PLACEHOLDER_KEYWORDS):
+            continue
+        results.append((grade, class_number, content))
+    return results
+
 # ---------- 遮罩學生姓名（隱私關鍵區） ----------
 # 只比對學校官網公告上「本來就遮罩過」的姓名（例如 王○明、歐陽○明、林○），原樣保存。
 # 本系統絕不嘗試還原完整姓名；寫入層(db/store.py)另有防護，不含遮罩符號的姓名一律拒絕入庫。

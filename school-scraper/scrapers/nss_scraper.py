@@ -17,7 +17,12 @@ from bs4 import BeautifulSoup
 from .base import BaseSchoolScraper, ClassAssignment, MaskedStudentEntry, ScrapeOutcome
 from .heuristics import extract_events_heuristic
 from .http_utils import polite_get
-from .pdf_utils import masked_name_samples, parse_class_teacher_pairs, parse_masked_student_roster
+from .pdf_utils import (
+    masked_name_samples,
+    parse_class_teacher_pairs,
+    parse_class_teacher_table,
+    parse_masked_student_roster,
+)
 
 logger = logging.getLogger("school_scraper")
 
@@ -95,6 +100,7 @@ class NssScraper(BaseSchoolScraper):
             )
 
         pairs = parse_class_teacher_pairs(text)
+        pairs.extend(parse_class_teacher_table(text))
         school_year = None
         m = SCHOOL_YEAR_RE.search(text)
         if m:

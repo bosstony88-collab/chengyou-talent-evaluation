@@ -667,6 +667,40 @@ def test_roster_dedups_and_skips_curriculum_plan_pdf():
     check("班級-導師資料仍正確解析出2筆", len(outcome.class_assignments) == 2, str(outcome.class_assignments))
 
 
+def test_class_teacher_table_format():
+    print("test_class_teacher_table_format")
+    # 第9次實跑於同德國中真實115學年度新生導師名單PDF發現的表格格式：
+    # 「班級 導師」表頭 + 「NNN 姓名」逐行（NNN=年級1碼+班號2碼相連），跟散文式完全不同。
+    # 未定案導師會用「[科目] 新進教師」佔位，不是真姓名，不該被收錄。
+    from scrapers.pdf_utils import parse_class_teacher_table
+
+    text = (
+        "同德國中115學年度七年級新生導師名單\n"
+        "班級 導師\n"
+        "701 國文 新進教師1\n"
+        "702 林○偉\n"
+        "703 黃○音\n"
+        "704 程○鈴\n"
+        "705 連○娟\n"
+        "706 理化 新進教師\n"
+    )
+    pairs = parse_class_teacher_table(text)
+    check("解析出4筆真實姓名（未定案佔位2筆被排除）", len(pairs) == 4, str(pairs))
+    check("班級代碼正確拆解為年級+班號",
+          (7, 2, "林○偉") in pairs and (7, 3, "黃○音") in pairs
+          and (7, 4, "程○鈴") in pairs and (7, 5, "連○娟") in pairs, str(pairs))
+    check("「[科目] 新進教師」佔位不被當成姓名",
+          not any(c == 1 for g, c, t in pairs), str(pairs))
+
+    check("沒有「班級 導師」表頭時完全不啟用，避免誤判", parse_class_teacher_table("115學年度公告 701 測試") == [])
+
+    # 防呆：確認不會把「115 學年度」（PDF擷取常見的數字與文字間帶空格）誤判成班級代碼
+    noisy = "班級 導師\n701 林○偉\n本名單為 115 學年度公告內容，如有異動另行通知"
+    pairs_noisy = parse_class_teacher_table(noisy)
+    check("「115 學年度」不會被誤判成(年級1,班號15)",
+          not any(g == 1 and c == 15 for g, c, _ in pairs_noisy), str(pairs_noisy))
+
+
 def test_roster_keyword_pagination_fallback():
     print("test_roster_keyword_pagination_fallback")
     # 模擬會稽國中在真實跑的時候發生的狀況：公告列表首頁40篇掃不到編班關鍵字
@@ -731,6 +765,7 @@ if __name__ == "__main__":
     test_roster_list_url_pointing_directly_to_article()
     test_masked_name_excludes_page_reference_placeholder()
     test_roster_dedups_and_skips_curriculum_plan_pdf()
+    test_class_teacher_table_format()
     test_roster_keyword_pagination_fallback()
     print(f"\n{PASS} passed, {FAIL} failed")
     sys.exit(1 if FAIL else 0)
