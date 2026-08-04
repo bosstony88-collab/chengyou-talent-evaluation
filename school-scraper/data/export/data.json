@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-04T17:13:10.601793+00:00",
+  "generated_at": "2026-08-04T17:23:09.632280+00:00",
   "school_count": 21,
   "schools": [
     {
@@ -710,9 +710,422 @@
           "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tad_cal/event.php?sn=872"
         }
       ],
-      "class_teacher_assignments": [],
+      "class_teacher_assignments": [
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 2,
+          "teacher_name": "林○偉",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 3,
+          "teacher_name": "黃○音",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 4,
+          "teacher_name": "程○鈴",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 5,
+          "teacher_name": "連○娟",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 7,
+          "teacher_name": "陳○鈿",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 8,
+          "teacher_name": "邱○平",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 11,
+          "teacher_name": "林○盈",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 12,
+          "teacher_name": "王○娟",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 14,
+          "teacher_name": "呂○芬",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 15,
+          "teacher_name": "解○婷",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 17,
+          "teacher_name": "楊○甄",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 7,
+          "class_number": 18,
+          "teacher_name": "趙○期",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=4361"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 1,
+          "teacher_name": "林慧君",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 2,
+          "teacher_name": "趙真妮",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 3,
+          "teacher_name": "林欣儀",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 4,
+          "teacher_name": "蔡昀君",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 5,
+          "teacher_name": "李宜庭",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 6,
+          "teacher_name": "張孟玲",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 7,
+          "teacher_name": "林冠吟",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 8,
+          "teacher_name": "李佳玟",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 9,
+          "teacher_name": "王昀之",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 10,
+          "teacher_name": "邱瀞瑩",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 11,
+          "teacher_name": "陳瀅如",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 12,
+          "teacher_name": "李佳璇",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 13,
+          "teacher_name": "林潔怡",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 14,
+          "teacher_name": "賴育群",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 15,
+          "teacher_name": "陳重光",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 16,
+          "teacher_name": "蕭任嫻",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 17,
+          "teacher_name": "高逢俊",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 18,
+          "teacher_name": "簡伊廷",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "115",
+          "grade": 8,
+          "class_number": 19,
+          "teacher_name": "鄧慧菁",
+          "is_carried_over": true,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 1,
+          "teacher_name": "林慧君",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 2,
+          "teacher_name": "趙真妮",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 3,
+          "teacher_name": "林欣儀",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 4,
+          "teacher_name": "蔡昀君",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 5,
+          "teacher_name": "李宜庭",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 6,
+          "teacher_name": "張孟玲",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 7,
+          "teacher_name": "林冠吟",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 8,
+          "teacher_name": "李佳玟",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 9,
+          "teacher_name": "王昀之",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 10,
+          "teacher_name": "邱瀞瑩",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 11,
+          "teacher_name": "陳瀅如",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 12,
+          "teacher_name": "李佳璇",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 13,
+          "teacher_name": "林潔怡",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 14,
+          "teacher_name": "賴育群",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 15,
+          "teacher_name": "陳重光",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 16,
+          "teacher_name": "蕭任嫻",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 17,
+          "teacher_name": "高逢俊",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 18,
+          "teacher_name": "簡伊廷",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        },
+        {
+          "school_year": "114",
+          "grade": 7,
+          "class_number": 19,
+          "teacher_name": "鄧慧菁",
+          "is_carried_over": false,
+          "source_url": "https://www.tdjhs.tyc.edu.tw/modules/tadnews/index.php?nsn=2604"
+        }
+      ],
       "student_roster": [],
       "last_scrape_log": [
+        {
+          "target": "roster",
+          "status": "success",
+          "message": "從 2 篇公告中解析出 31 筆班級-導師資料、0 筆遮罩學生名單（0 個班級），另有 12 個遮罩姓名因無法歸屬班級而未收",
+          "run_at": "2026-08-04T17:23:08.992857+00:00"
+        },
+        {
+          "target": "calendar",
+          "status": "success",
+          "message": "共找到 1 個事件連結，成功解析 1 筆",
+          "run_at": "2026-08-04T17:21:14.857676+00:00"
+        },
         {
           "target": "roster",
           "status": "partial",
@@ -724,18 +1137,6 @@
           "status": "success",
           "message": "共找到 1 個事件連結，成功解析 1 筆",
           "run_at": "2026-08-04T17:01:28.768082+00:00"
-        },
-        {
-          "target": "roster",
-          "status": "failed",
-          "message": "在 https://www.tdjhs.tyc.edu.tw/modules/tadnews/ 掃描了 0 篇公告標題，沒有找到含「編班」「導師編配」等關鍵字的公告，可能該公告目前不在第一頁或用詞不同",
-          "run_at": "2026-08-04T05:24:56.404908+00:00"
-        },
-        {
-          "target": "calendar",
-          "status": "success",
-          "message": "共找到 1 個事件連結，成功解析 1 筆",
-          "run_at": "2026-08-04T05:24:44.728853+00:00"
         }
       ]
     },
