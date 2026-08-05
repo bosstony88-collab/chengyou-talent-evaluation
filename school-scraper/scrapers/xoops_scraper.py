@@ -358,9 +358,12 @@ class XoopsScraper(BaseSchoolScraper):
             # 「第N班」簡寫式標頭需要年級，從公告標題推斷（僅標題明確單一年級/新生時才用）
             default_grade = parse_single_grade_from_title(title, self.school.get("level"))
             diagnostic_logged = False
+            found_anything_this_article = bool(pairs)
             for text, text_source in texts_for_roster:
                 classes, unattributed = parse_masked_student_roster(text, default_grade=default_grade)
                 unattributed_masked_total += unattributed
+                if classes:
+                    found_anything_this_article = True
                 if unattributed and not classes and not diagnostic_logged:
                     # 名單完全無法歸屬時記錄實際比對到的字串樣本＋來源，供下次判斷
                     # 是真實姓名格式沒吃到、還是不相關PDF附件造成的誤判
@@ -389,6 +392,29 @@ class XoopsScraper(BaseSchoolScraper):
                                 source_url=article_url,
                             )
                         )
+
+            if not found_anything_this_article and not diagnostic_logged:
+                # 連遮罩姓名的誤判都沒有、完全比對不到任何東西——可能是純流程說明公告、
+                # 圖片掃描PDF(擷取不到文字)、或格式跟目前支援的規則完全不同。既有的診斷log
+                # 只在「有疑似姓名但無法歸屬」時才印，這裡補上完全無比對結果時的原始文字樣本，
+                # 不然這種case完全沒有線索可以追查
+                logged_any_sample = False
+                for text, text_source in texts_for_roster:
+                    if "班" in text:
+                        logger.info(
+                            "[%s] 公告「%s」完全比對不到班級-導師配對或遮罩姓名，來源=%s，"
+                            "原始文字開頭(%d字): %r",
+                            self.school["id"], title, text_source, len(text), text[:400],
+                        )
+                        logged_any_sample = True
+                        break
+                if not logged_any_sample:
+                    # 所有來源都沒有「班」字內容——可能是圖片掃描PDF擷取不到文字、或內容過短
+                    lengths = ", ".join(f"{src}({len(t)}字)" for t, src in texts_for_roster)
+                    logger.info(
+                        "[%s] 公告「%s」所有來源皆無「班」字內容，可能是圖片掃描PDF或內容過短，來源明細: %s",
+                        self.school["id"], title, lengths,
+                    )
 
         if not all_assignments and not all_student_entries:
             return ScrapeOutcome(
