@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>技術團隊工作回報｜CEO 儀表板</title>
+<title>克雷斯技術團隊工作回報｜CEO 儀表板</title>
 <style>
   :root{
     --bg1:#eef4ff; --bg2:#f7ecff; --bg3:#fef6ef;
@@ -43,7 +43,12 @@
 
   #teamPanel{position:fixed;left:16px;top:78px;bottom:16px;width:308px;z-index:15;
     display:flex;flex-direction:column;overflow:hidden;}
-  #teamPanel .th{padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;}
+  #teamPanel .th{padding:14px 16px 8px;display:flex;align-items:center;gap:8px;}
+  #teamPanel .th b{white-space:nowrap;}
+  #teamPanel .th #teamCount{margin-left:auto;white-space:nowrap;}
+  .mini-toggle{border:1px solid var(--border);background:rgba(255,255,255,.6);border-radius:8px;padding:3px 9px;
+    font-size:10.5px;font-weight:700;color:var(--sub);cursor:pointer;}
+  .mini-toggle.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border-color:transparent;}
   #teamPanel .th b{font-size:13.5px;}
   .legend{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 10px;font-size:10.5px;color:var(--sub);}
   .legend span{display:inline-flex;align-items:center;gap:4px;}
@@ -54,13 +59,21 @@
   .person-row .top{display:flex;justify-content:space-between;align-items:center;gap:6px;}
   .person-row .name{font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px;}
   .person-row .qdot{width:9px;height:9px;border-radius:50%;flex:none;}
+  .grade-dot{width:20px;height:20px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;
+    color:#fff;font-size:10px;font-weight:900;}
   .person-row .badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;color:#fff;}
   .person-row .scores{display:flex;gap:10px;font-size:10.5px;color:var(--sub);margin-top:5px;}
   .person-row .scores b{color:var(--ink);}
   .mini-heat{display:flex;gap:2px;margin-top:7px;}
   .mini-heat i{flex:1;height:9px;border-radius:2px;background:#e6e9f0;}
   .flag-chip{display:inline-block;font-size:9.5px;background:rgba(224,82,106,.14);color:#b8354a;border-radius:6px;padding:1px 6px;margin-top:5px;margin-right:4px;}
+  .top-suggestion{font-size:10.5px;color:var(--sub);margin-top:6px;line-height:1.4;padding-top:6px;border-top:1px dashed rgba(107,114,128,.2);}
   #teamEmpty{padding:30px 14px;text-align:center;color:var(--sub);font-size:12.5px;}
+
+  #alertToggle{border:1px solid var(--border);border-radius:12px;padding:9px 14px;font-size:12.5px;font-weight:700;cursor:pointer;
+    background:var(--glass);box-shadow:var(--shadow);color:#b8354a;}
+  #alertToggle.active{background:linear-gradient(135deg,#e0526a,#d9971f);color:#fff;}
+  #alertToggle:disabled{opacity:.45;cursor:default;}
 
   #teamToggle,#autoRotateBtn{position:fixed;z-index:22;border:none;border-radius:16px;box-shadow:var(--shadow);
     background:var(--glass-strong);font-weight:700;cursor:pointer;}
@@ -70,7 +83,7 @@
   #detail{position:fixed;top:0;right:-420px;width:400px;height:100%;z-index:25;
     transition:right .32s cubic-bezier(.2,.8,.2,1);padding:16px;overflow-y:auto;}
   #detail.open{right:0;}
-  #detail .dhead{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+  #detail .dhead{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px;}
   #detail .dhead h2{margin:0;font-size:18px;}
   #detail .dhead .status{font-size:11px;color:var(--sub);margin-top:2px;}
   #detail .close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--sub);padding:4px;}
@@ -81,6 +94,13 @@
   .score-box.auth{background:rgba(109,140,255,.14);}
   .score-box.prod{background:rgba(185,140,255,.14);}
   .qbadge{display:inline-block;font-size:11px;font-weight:800;color:#fff;padding:4px 10px;border-radius:999px;margin-top:6px;}
+  .grade-badge-lg{width:56px;height:56px;border-radius:16px;color:#fff;font-size:22px;font-weight:900;
+    display:flex;align-items:center;justify-content:center;flex:none;box-shadow:var(--shadow);}
+  .insight-list{list-style:none;margin:0;padding:0;}
+  .insight-list li{font-size:12px;line-height:1.6;padding:8px 10px;border-radius:10px;margin-bottom:6px;}
+  .insight-list li.alert-high{background:rgba(224,82,106,.13);color:#b8354a;}
+  .insight-list li.alert-medium{background:rgba(217,151,31,.13);color:#9a6b0f;}
+  .insight-list li.suggestion{background:rgba(109,140,255,.1);color:#3a51c9;}
   .section-title{font-size:12.5px;font-weight:800;margin:16px 0 8px;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;}
   .heat-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
   .heat-cell{aspect-ratio:1;border-radius:4px;background:#e6e9f0;position:relative;}
@@ -120,7 +140,7 @@
 <div id="scene"></div>
 
 <div id="hud">
-  <h1>技術團隊工作回報｜CEO 儀表板<small>誠信 × 產能 立體總覽</small></h1>
+  <h1>克雷斯技術團隊工作回報｜CEO 儀表板<small>誠信 × 產能 立體總覽</small></h1>
   <div class="pillgroup" id="rangePills">
     <button data-r="today">今日</button>
     <button data-r="week">本週</button>
@@ -128,6 +148,7 @@
     <button data-r="all">近90天</button>
   </div>
   <select id="personFilter"><option value="ALL">全部成員</option></select>
+  <button id="alertToggle">🔔 只看警示</button>
   <div class="spacer"></div>
   <span id="syncStatus"></span>
   <button id="syncBtn">☁ 同步</button>
@@ -137,6 +158,7 @@
 <div id="teamPanel" class="glass-panel">
   <div class="th">
     <b>團隊總覽</b>
+    <button id="rankToggle" class="mini-toggle">📊 排行榜</button>
     <span style="font-size:11px;color:var(--sub);" id="teamCount"></span>
   </div>
   <div class="legend">
@@ -145,6 +167,7 @@
     <span><i style="background:var(--q-stuck)"></i>待協助型</span>
     <span><i style="background:var(--q-risk)"></i>高風險型</span>
   </div>
+  <div id="rankChartWrap" style="display:none;padding:2px 16px 12px;"><canvas id="rankChart"></canvas></div>
   <div id="teamList"></div>
 </div>
 <button id="teamToggle">📋 團隊總覽</button>
@@ -159,9 +182,12 @@ let ADMIN_KEY = "";
 const ROLLING_WINDOW_DAYS = 7;
 const QUADRANT_THRESHOLD = 70;
 const DUPLICATE_SIMILARITY_THRESHOLD = 0.85;
+const MIN_DESC_LENGTH = 8;
+const HOURS_VARIANCE_RATIO = 0.5;
 const isDemo = !API_URL;
 
 const QCOLOR = { "明星型":"#2fae74", "需查核型":"#d9971f", "待協助型":"#5b7cf0", "高風險型":"#e0526a" };
+const GRADE_COLOR = { "A+":"#1f8a56", "A":"#2fae74", "B":"#5b7cf0", "C":"#d9971f", "D":"#e0526a" };
 const QCOLOR_HEX = { "明星型":0x2fae74, "需查核型":0xd9971f, "待協助型":0x5b7cf0, "高風險型":0xe0526a };
 
 let db = { roster:[], tasks:[], daily:[], audit:[], githubEnabled:false };
@@ -169,6 +195,9 @@ let rangeMode = "month";
 let personFilter = "ALL";
 let selectedPerson = null;
 let autoRotate = true;
+let alertFilter = false;
+let rankChartOpen = false;
+let chartRank=null, chartStatus=null, chartProject=null;
 
 /* ====== 日期工具 ====== */
 function fmtDate(d){
@@ -270,11 +299,31 @@ function bigramJaccard(a,b){
   const uni = A.size+B.size-inter;
   return uni ? inter/uni : 0;
 }
+// 證據可信度分級，對應後端 evidenceQuality()：1=像網址的連結、0.6=有填但非網址、0.4=有說明原因、0=完全沒有
+function evidenceQuality(t){
+  const url = t.evidenceUrl ? String(t.evidenceUrl).trim() : "";
+  if (url) return /^https?:\/\//i.test(url) ? 1 : 0.6;
+  const reason = t.noEvidenceReason ? String(t.noEvidenceReason).trim() : "";
+  return reason ? 0.4 : 0;
+}
+function hasShortDescriptions(tasks){
+  if (!tasks.length) return false;
+  const shortCount = tasks.filter(t=>String(t.desc||"").trim().length < MIN_DESC_LENGTH).length;
+  return shortCount/tasks.length > 0.5;
+}
+function hasHoursVariance(tasks){
+  const withEst = tasks.filter(t=>t.estHours>0);
+  if (withEst.length<2) return false;
+  const totalEst = withEst.reduce((s,t)=>s+t.estHours,0);
+  const totalAct = withEst.reduce((s,t)=>s+t.actHours,0);
+  return Math.abs(totalAct-totalEst)/totalEst > HOURS_VARIANCE_RATIO;
+}
+
 function computeBreakdown(tasks, audits){
   const applicable = tasks.filter(t=>t.status!=="取消");
   const evApplicable = applicable.filter(t=>t.status!=="請假或無工作");
   const completed = applicable.filter(t=>t.status==="已完成");
-  const evidenceCoverage = evApplicable.length ? pct(evApplicable.filter(t=>t.hasEvidence).length, evApplicable.length) : 100;
+  const evidenceCoverage = evApplicable.length ? clamp0(avg(evApplicable.map(evidenceQuality))*100) : 100;
 
   const byBatch = {};
   tasks.forEach(t=>{ (byBatch[t.batchId||t.date] = byBatch[t.batchId||t.date]||[]).push(t); });
@@ -290,10 +339,15 @@ function computeBreakdown(tasks, audits){
   });
   const timing = avg(timingScores);
 
-  const descTasks = applicable.filter(t=>t.desc && String(t.desc).trim());
+  // 只比對「同一天」內的描述重複度：多日延續同一項工作是正常現象，不應被誤判為灌水
+  const descTasks = applicable.filter(t=>t.desc && String(t.desc).trim().length>=4);
+  const byDate = {};
+  descTasks.forEach(t=>{ (byDate[t.date] = byDate[t.date]||[]).push(t); });
   let dup = 0;
-  for (let i=0;i<descTasks.length;i++) for (let j=0;j<i;j++)
-    if (bigramJaccard(descTasks[i].desc, descTasks[j].desc) >= DUPLICATE_SIMILARITY_THRESHOLD){ dup++; break; }
+  Object.values(byDate).forEach(dayTasks=>{
+    for (let i=0;i<dayTasks.length;i++) for (let j=0;j<i;j++)
+      if (bigramJaccard(dayTasks[i].desc, dayTasks[j].desc) >= DUPLICATE_SIMILARITY_THRESHOLD){ dup++; break; }
+  });
   const duplicate = descTasks.length>1 ? clamp0(100-(dup/descTasks.length)*100) : 100;
 
   const auditScore = audits.length ? avg(audits.map(a=>a.status==="查核未通過"?0:100)) : 100;
@@ -302,30 +356,73 @@ function computeBreakdown(tasks, audits){
   const totalHours = applicable.reduce((s,t)=>s+(t.actHours||0),0);
   const withPlan = completed.filter(t=>t.plannedDate);
   const ontime = withPlan.length ? pct(withPlan.filter(t=>t.date<=t.plannedDate).length, withPlan.length) : 100;
+  const shortDesc = hasShortDescriptions(evApplicable);
+  const hoursVariance = hasHoursVariance(applicable);
 
-  return { evidenceCoverage, timing, duplicate, auditScore, completionRate, weightedOutput, totalHours, ontime };
+  return { evidenceCoverage, timing, duplicate, auditScore, completionRate, weightedOutput, totalHours, ontime, shortDesc, hoursVariance };
+}
+
+/* ====== 評比等級（A+/A/B/C/D）：誠信與產能的綜合表現，落差越大代表越不均衡，會被額外扣分 ====== */
+function computeGrade(auth, prod){
+  const composite = clamp0((auth+prod)/2 - Math.abs(auth-prod)*0.15);
+  const grade = composite>=90?"A+" : composite>=78?"A" : composite>=62?"B" : composite>=45?"C" : "D";
+  return { grade, composite: Math.round(composite*10)/10, color: GRADE_COLOR[grade] };
+}
+
+/* ====== 警示與工作建議：把分數/旗標轉換成 CEO 看得懂的具體行動建議 ====== */
+function generateInsights(score, bd){
+  const alerts = [], suggestions = [];
+  const flags = String(score.flags||"");
+  if (score.quadrant==="高風險型") alerts.push({ level:"high", text:"誠信與產能皆低於標準，建議儘快安排一對一面談了解實際狀況" });
+  if (score.quadrant==="需查核型") alerts.push({ level:"high", text:"產能數字亮眼但誠信偏低，建議實際查核產出真實性（比對證據連結或詢問細節）" });
+  if (score.quadrant==="待協助型") alerts.push({ level:"medium", text:"產出偏低但誠信良好，可能卡關中，建議主動關心並提供協助，而非究責" });
+  if (flags.includes("缺交")) alerts.push({ level:"high", text:"近期有缺交回報，建議確認是否正常在職與工作中" });
+  if (flags.includes("查核未通過")) alerts.push({ level:"high", text:"先前查核未通過，建議追蹤後續改善狀況" });
+  if (bd.evidenceCoverage < 60) alerts.push({ level:"medium", text:"證據連結覆蓋率偏低，建議提醒每筆任務盡量附上可驗證的連結" });
+  if (bd.duplicate < 70) alerts.push({ level:"medium", text:"同一天內任務描述高度重複，建議確認是否為簡化填寫或真的重複性工作" });
+
+  if (score.quadrant==="明星型") suggestions.push("表現優異，建議公開肯定或給予更具挑戰性的任務");
+  if (bd.timing < 60) suggestions.push("回報常補登、非當天送出，建議了解是否時間管理或回報習慣需要調整");
+  if (bd.shortDesc) suggestions.push("任務描述內容過於簡略，建議引導填寫更具體的工作內容，方便驗證與交接");
+  if (bd.hoursVariance) suggestions.push("預估工時與實際工時落差較大，建議確認是任務估算能力需加強，還是工時填寫不夠誠實");
+  if (bd.ontime < 70) suggestions.push("有原訂完成日的任務常delay，建議確認排期是否過於樂觀");
+  if (!alerts.length && !suggestions.length) suggestions.push("目前表現穩定、無明顯異常，維持現有節奏即可");
+
+  const order = { high:0, medium:1, low:2 };
+  alerts.sort((a,b)=>order[a.level]-order[b.level]);
+  return { alerts, suggestions };
 }
 
 /* ====== 團隊總覽清單 ====== */
 function renderTeamList(){
   const { from, to } = filteredRange();
-  const rows = personsInScope().map(r=>{
+  let rows = personsInScope().map(r=>{
     const score = latestScore(r.name, from, to);
+    if (!score) return null;
     const tasks = tasksFor(r.name, from, to);
-    return { roster:r, score, tasks };
-  }).filter(x=>x.score);
+    const bd = computeBreakdown(tasks, auditsFor(r.name, from, to));
+    const grade = computeGrade(score.authenticity, score.productivity);
+    const insight = generateInsights(score, bd);
+    return { roster:r, score, tasks, grade, insight };
+  }).filter(Boolean);
 
   rows.sort((a,b)=>{
     const rank = q => (q==="高風險型"?0:q==="需查核型"?1:q==="待協助型"?2:3);
     return rank(a.score.quadrant)-rank(b.score.quadrant) || a.score.authenticity-b.score.authenticity;
   });
 
-  document.getElementById("teamCount").textContent = rows.length + " 位成員";
+  const totalAlerts = rows.reduce((s,x)=>s+x.insight.alerts.length,0);
+  const alertedPeople = rows.filter(x=>x.insight.alerts.length>0).length;
+  updateAlertToggle(alertedPeople);
+  renderRankChart(rows);
+  if (alertFilter) rows = rows.filter(x=>x.insight.alerts.length>0);
+
+  document.getElementById("teamCount").textContent = rows.length + " 位成員" + (totalAlerts?`．${totalAlerts} 項警示`:"");
   const list = document.getElementById("teamList");
-  if (!rows.length){ list.innerHTML = `<div id="teamEmpty">此區間尚無回報資料</div>`; return; }
+  if (!rows.length){ list.innerHTML = `<div id="teamEmpty">${alertFilter?"目前沒有需要警示的成員":"此區間尚無回報資料"}</div>`; return; }
 
   const days = dateList(from, to).slice(-7);
-  list.innerHTML = rows.map(({roster:r, score, tasks})=>{
+  list.innerHTML = rows.map(({roster:r, score, tasks, grade, insight})=>{
     const heat = days.map(d=>{
       const dayTasks = tasks.filter(t=>t.date===d);
       if (!dayTasks.length) return `<i class="heat-cell miss" style="height:9px"></i>`;
@@ -335,20 +432,51 @@ function renderTeamList(){
       return `<i style="background:rgba(47,174,116,${alpha})"></i>`;
     }).join("");
     const flags = (score.flags||"").split(/[、,]/).filter(Boolean);
+    const topLine = insight.alerts[0] ? "⚠ " + insight.alerts[0].text : insight.suggestions[0];
     return `<div class="person-row" data-person="${escAttr(r.name)}">
       <div class="top">
-        <span class="name"><span class="qdot" style="background:${QCOLOR[score.quadrant]||'#999'}"></span>${esc(r.name)}${r.status!=="在職"?" 🚫":""}</span>
+        <span class="name"><span class="grade-dot" style="background:${grade.color}" title="評比 ${grade.grade}">${grade.grade}</span>${esc(r.name)}${r.status!=="在職"?" 🚫":""}</span>
         <span class="badge" style="background:${QCOLOR[score.quadrant]||'#999'}">${esc(score.quadrant)}</span>
       </div>
       <div class="scores">誠信 <b>${score.authenticity}</b> · 產能 <b>${score.productivity}</b> · ${score.live?"即時":"每日彙總"}</div>
       <div class="mini-heat">${heat}</div>
       ${flags.map(f=>`<span class="flag-chip">${esc(f)}</span>`).join("")}
+      ${topLine ? `<div class="top-suggestion">${esc(topLine)}</div>` : ""}
     </div>`;
   }).join("");
 
   list.querySelectorAll(".person-row").forEach(el=>{
     el.onclick = () => openDetail(el.dataset.person);
   });
+}
+
+function updateAlertToggle(count){
+  const btn = document.getElementById("alertToggle");
+  if (!btn) return;
+  btn.textContent = "🔔 只看警示" + (count?` (${count})`:"");
+  btn.classList.toggle("active", alertFilter);
+  btn.disabled = count===0 && !alertFilter;
+}
+
+// 團隊排行榜：把所有成員的誠信/產能分數並排比較，一眼看出全隊相對位置
+function renderRankChart(rows){
+  const wrap = document.getElementById("rankChartWrap");
+  const toggle = document.getElementById("rankToggle");
+  toggle.classList.toggle("active", rankChartOpen);
+  wrap.style.display = rankChartOpen ? "block" : "none";
+  if (!rankChartOpen) return;
+  const ctx = document.getElementById("rankChart");
+  if (typeof Chart === "undefined"){ chartFallback(ctx, "圖表函式庫載入失敗，略過排行榜"); return; }
+  const sorted = rows.slice().sort((a,b)=>(b.score.productivity+b.score.authenticity)-(a.score.productivity+a.score.authenticity));
+  if (chartRank) chartRank.destroy();
+  chartRank = new Chart(ctx, { type:"bar", data:{
+    labels: sorted.map(x=>x.roster.name),
+    datasets:[
+      { label:"誠信", data: sorted.map(x=>x.score.authenticity), backgroundColor:"#6d8cff", borderRadius:4 },
+      { label:"產能", data: sorted.map(x=>x.score.productivity), backgroundColor:"#2fae74", borderRadius:4 }
+    ]
+  }, options:{ responsive:true, scales:{ y:{ min:0, max:100, ticks:{ font:{ size:9 } } }, x:{ ticks:{ font:{ size:9 } } } },
+    plugins:{ legend:{ position:"bottom", labels:{ boxWidth:8, font:{ size:9 } } } } } });
 }
 
 /* ====== 詳情面板 ====== */
@@ -363,11 +491,14 @@ function openDetail(name){
   const audits = auditsFor(name, from, to);
   const trend = dailyFor(name, from, to).sort((a,b)=>a.date<b.date?-1:1);
   const bd = computeBreakdown(tasksFor(name, from, to), audits);
+  const grade = computeGrade(score.authenticity, score.productivity);
+  const insight = generateInsights(score, bd);
 
   const panel = document.getElementById("detail");
   panel.innerHTML = `
     <div class="dhead">
-      <div>
+      <div class="grade-badge-lg" style="background:${grade.color}" title="評比等級">${grade.grade}</div>
+      <div style="flex:1;">
         <h2>${esc(name)}</h2>
         <div class="status">${esc(roster.status)}${roster.githubUser?" · GitHub: "+esc(roster.githubUser):""}</div>
         <span class="qbadge" style="background:${QCOLOR[score.quadrant]||'#999'}">${esc(score.quadrant)}</span>
@@ -380,6 +511,12 @@ function openDetail(name){
     </div>
     ${score.flags ? `<div>${String(score.flags).split(/[、,]/).filter(Boolean).map(f=>`<span class="flag-chip">${esc(f)}</span>`).join("")}</div>` : ""}
 
+    <div class="section-title">⚠ 警示與工作建議</div>
+    <ul class="insight-list">
+      ${insight.alerts.map(a=>`<li class="alert-${a.level}">⚠ ${esc(a.text)}</li>`).join("")}
+      ${insight.suggestions.map(s=>`<li class="suggestion">💡 ${esc(s)}</li>`).join("")}
+    </ul>
+
     <div class="section-title">近 7 天出席／產出熱力圖</div>
     <div class="heat-grid" id="heatGrid"></div>
 
@@ -391,6 +528,12 @@ function openDetail(name){
 
     <div class="section-title">誠信／產能趨勢（每日彙總）</div>
     <div class="chart-wrap"><canvas id="trendChart" height="160"></canvas></div>
+
+    <div class="section-title">任務狀態與專案時間分佈</div>
+    <div style="display:flex;gap:8px;">
+      <div class="chart-wrap" style="flex:1;min-width:0;"><canvas id="statusChart" height="150"></canvas></div>
+      <div class="chart-wrap" style="flex:1;min-width:0;"><canvas id="projectChart" height="150"></canvas></div>
+    </div>
 
     <div class="section-title">CEO 查核標記</div>
     <div class="audit-box">
@@ -422,6 +565,8 @@ function openDetail(name){
   renderRadar(bd, db.githubEnabled);
   renderBar(bd, db.githubEnabled);
   renderTrend(trend);
+  renderStatusChart(tasks);
+  renderProjectChart(tasks);
 
   if (window.innerWidth <= 900) document.getElementById("teamPanel").classList.remove("open");
 }
@@ -445,11 +590,20 @@ function renderHeatGrid(tasks, audits){
   }).join("");
 }
 
+// 冪等的降級處理：canvas 保留在 DOM 中（只是隱藏），改插入/更新一個訊息 sibling。
+// 若直接把 canvas 換掉（ctx.replaceWith），像排行榜這種會被重複呼叫的圖表（每次篩選
+// 都重繪）在第二次呼叫時就會因為 getElementById 找不到 canvas 而丟出例外。
 function chartFallback(ctx, text){
-  const p = document.createElement("div");
-  p.style.cssText = "text-align:center;color:var(--sub);font-size:11.5px;padding:20px 0;";
-  p.textContent = text;
-  ctx.replaceWith(p);
+  if (!ctx) return;
+  ctx.style.display = "none";
+  let msg = ctx.nextElementSibling;
+  if (!msg || !msg.classList || !msg.classList.contains("chart-fallback-msg")){
+    msg = document.createElement("div");
+    msg.className = "chart-fallback-msg";
+    msg.style.cssText = "text-align:center;color:var(--sub);font-size:11.5px;padding:20px 0;";
+    ctx.parentNode.insertBefore(msg, ctx.nextSibling);
+  }
+  msg.textContent = text;
 }
 
 function renderRadar(bd, ghOn){
@@ -482,6 +636,34 @@ function renderTrend(trend){
     { label:"誠信分數", data:trend.map(t=>t.authenticity), borderColor:"#6d8cff", backgroundColor:"rgba(109,140,255,.15)", tension:.3 },
     { label:"產能分數", data:trend.map(t=>t.productivity), borderColor:"#2fae74", backgroundColor:"rgba(47,174,116,.15)", tension:.3 }
   ] }, options:{ scales:{ y:{ min:0, max:100 } }, plugins:{ legend:{ position:"bottom", labels:{ boxWidth:10, font:{ size:10 } } } } } });
+}
+
+const STATUS_COLOR = { "已完成":"#2fae74", "進行中":"#5b7cf0", "延遲或卡關":"#e0526a", "取消":"#9aa2b1", "請假或無工作":"#b98cff" };
+function renderStatusChart(tasks){
+  const ctx = document.getElementById("statusChart");
+  if (typeof Chart === "undefined"){ chartFallback(ctx, "圖表函式庫載入失敗，略過狀態圖"); return; }
+  const counts = {};
+  tasks.forEach(t=>{ counts[t.status] = (counts[t.status]||0)+1; });
+  const labels = Object.keys(counts);
+  if (chartStatus) chartStatus.destroy();
+  if (!labels.length){ chartFallback(ctx, "此區間無任務資料"); return; }
+  chartStatus = new Chart(ctx, { type:"doughnut", data:{ labels, datasets:[{ data: labels.map(l=>counts[l]), backgroundColor: labels.map(l=>STATUS_COLOR[l]||"#999") }] },
+    options:{ plugins:{ legend:{ position:"bottom", labels:{ boxWidth:8, font:{ size:9 } } }, title:{ display:true, text:"任務狀態分佈", font:{ size:11 } } } } });
+}
+function renderProjectChart(tasks){
+  const ctx = document.getElementById("projectChart");
+  if (typeof Chart === "undefined"){ chartFallback(ctx, "圖表函式庫載入失敗，略過專案圖"); return; }
+  const hours = {};
+  tasks.filter(t=>t.status!=="取消"&&t.status!=="請假或無工作").forEach(t=>{
+    const key = t.project && t.project.trim() ? t.project.trim() : "未分類";
+    hours[key] = (hours[key]||0) + (t.actHours||0);
+  });
+  const labels = Object.keys(hours).filter(k=>hours[k]>0);
+  if (chartProject) chartProject.destroy();
+  if (!labels.length){ chartFallback(ctx, "此區間無工時資料"); return; }
+  const palette = ["#6d8cff","#2fae74","#d9971f","#b98cff","#e0526a","#4fc3d9","#f2a65a"];
+  chartProject = new Chart(ctx, { type:"doughnut", data:{ labels, datasets:[{ data: labels.map(l=>hours[l]), backgroundColor: labels.map((l,i)=>palette[i%palette.length]) }] },
+    options:{ plugins:{ legend:{ position:"bottom", labels:{ boxWidth:8, font:{ size:9 } } }, title:{ display:true, text:"專案工時分佈", font:{ size:11 } } } } });
 }
 
 async function submitAudit(name){
@@ -701,6 +883,8 @@ document.getElementById("rangePills").addEventListener("click", e=>{
 });
 document.getElementById("personFilter").addEventListener("change", e=>{ personFilter = e.target.value; renderAll(); });
 document.getElementById("syncBtn").addEventListener("click", loadDashboard);
+document.getElementById("alertToggle").addEventListener("click", ()=>{ alertFilter = !alertFilter; renderTeamList(); if (window.innerWidth<=900) document.getElementById("teamPanel").classList.add("open"); });
+document.getElementById("rankToggle").addEventListener("click", ()=>{ rankChartOpen = !rankChartOpen; renderTeamList(); });
 document.getElementById("teamToggle").addEventListener("click", ()=>document.getElementById("teamPanel").classList.toggle("open"));
 document.getElementById("autoRotateBtn").addEventListener("click", ()=>{ autoRotate = !autoRotate; });
 

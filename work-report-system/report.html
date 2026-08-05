@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>技術團隊每日工作回報</title>
+<title>克雷斯技術團隊每日工作回報</title>
 <style>
   :root{
     --bg1:#eef4ff; --bg2:#f7ecff; --bg3:#fef6ef;
@@ -57,6 +57,8 @@
   .btn-ghost{background:rgba(255,255,255,.6);color:var(--ink);border:1px solid rgba(107,114,128,.25);width:100%;}
   .btn-soft{background:rgba(109,140,255,.12);color:#4a5fd6;width:100%;}
   .btn-danger-text{background:transparent;color:var(--danger);padding:6px 10px;font-size:13px;font-weight:600;}
+  .copy-btn{margin-top:8px;background:rgba(109,140,255,.12);color:#4a5fd6;border:none;border-radius:10px;
+    padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;}
   .btn-row{display:flex;gap:10px;}
   .btn-row .btn{flex:1;}
 
@@ -128,8 +130,13 @@ const API_URL = "";
 const STORAGE_KEY_SESSION = "wr_session_v1";
 const STORAGE_KEY_DRAFTS  = "wr_drafts_v1";
 const STORAGE_KEY_HISTORY = "wr_project_history_v1";
+const STORAGE_KEY_LAST    = "wr_last_defaults_v1";
 const STATUS_OPTIONS = ["已完成","進行中","延遲或卡關","取消","請假或無工作"];
 const COMPLEXITY_LABELS = {1:"1・輕鬆",2:"2・普通",3:"3・中等",4:"4・吃力",5:"5・硬仗"};
+const MIN_DESC_LENGTH = 8;
+
+// 用來預帶「複製上一筆」的來源任務；null 代表這次是全新填寫
+let copySourceTask = null;
 
 const isDemo = !API_URL;
 let demoFixture = null;
@@ -298,7 +305,7 @@ function brandHTML(){
   return `
   <div class="brand">
     <div class="dot"></div>
-    <div><h1>技術團隊每日工作回報</h1><small>${state.session ? "您好，"+esc(state.session.name) : "程優教育科技 · 委外技術團隊"}</small></div>
+    <div><h1>克雷斯技術團隊每日工作回報</h1><small>${state.session ? "您好，"+esc(state.session.name) : "程優教育科技 · 克雷斯技術團隊"}</small></div>
   </div>`;
 }
 
@@ -366,13 +373,14 @@ function mainScreenHTML(){
 
 function todayListHTML(){
   if (!state.todayTasks.length) return `<div class="empty">今天還沒有任何回報紀錄</div>`;
-  return `<ul class="today-list">` + state.todayTasks.map(t => `
+  return `<ul class="today-list">` + state.todayTasks.map((t,i) => `
     <li class="today-item">
       <div class="top">
         <strong>${esc(t.desc || "（無標題）")}</strong>
         <span class="status-pill status-${esc(t.status)}">${esc(t.status)}</span>
       </div>
       <div class="meta">${esc(t.project||"—")} · 複雜度 ${t.complexity||0} · 實際 ${t.actHours||0}h ${t.evidenceUrl ? " · 已附證據連結" : ""}</div>
+      ${t.status!=="請假或無工作" ? `<button class="copy-btn" data-copy-today="${i}">📋 延續這項任務</button>` : ""}
     </li>`).join("") + `</ul>`;
 }
 
@@ -383,33 +391,42 @@ function draftListHTML(){
       <button class="btn-danger-text remove" data-remove="${i}">移除</button>
       <div class="top"><strong>${esc(t.desc || "（無標題）")}</strong></div>
       <div class="meta">${esc(t.date)} · ${esc(t.project||"—")} · 複雜度 ${t.complexity} · 狀態 ${esc(t.status)}${t.evidenceUrl ? " · 已附證據" : t.noEvidenceReason ? " · 無證據："+esc(t.noEvidenceReason) : " · ⚠未附證據"}</div>
+      <button class="copy-btn" data-copy-draft="${i}">📋 複製一份</button>
     </li>`).join("") + `</ul>`;
 }
 
 function taskFormHTML(){
   const hist = loadJSON(STORAGE_KEY_HISTORY, []);
+  const last = loadJSON(STORAGE_KEY_LAST, { project:"", complexity:2 });
+  const src = copySourceTask;
+  const dProject = esc(src ? (src.project||"") : (last.project||""));
+  const dComplexity = src ? (src.complexity||2) : (last.complexity||2);
+  const dEst = src ? (src.estHours||1) : 1;
+  const dAct = src ? (src.actHours||1) : 1;
+  const dDesc = esc(src ? (src.desc||"") : "");
   return `
   <div class="card">
-    <h2>新增任務</h2>
+    <h2>${src ? "延續上一筆（請確認/修改內容）" : "新增任務"}</h2>
     <label for="t-date">回報日期（工作實際發生日）</label>
     <input type="date" id="t-date" value="${todayStr()}" max="${todayStr()}">
     <div id="t-date-hint"></div>
 
     <label for="t-project">專案／系統別</label>
-    <input type="text" id="t-project" list="t-project-hist" placeholder="例：會員後台、排課系統">
+    <input type="text" id="t-project" list="t-project-hist" value="${dProject}" placeholder="例：會員後台、排課系統">
     <datalist id="t-project-hist">${hist.map(h=>`<option value="${esc(h)}">`).join("")}</datalist>
 
     <label for="t-desc">任務描述</label>
-    <textarea id="t-desc" placeholder="今天實際做了什麼？盡量具體（做了什麼、改了哪個功能）"></textarea>
+    <textarea id="t-desc" placeholder="今天實際做了什麼？盡量具體（做了什麼、改了哪個功能），有助於系統判斷真實性">${dDesc}</textarea>
+    <div id="t-desc-hint"></div>
 
     <label>複雜度自評</label>
     <div class="complexity-group" id="t-complexity">
-      ${[1,2,3,4,5].map(n=>`<button type="button" data-c="${n}" class="${n===2?'active':''}">${n}</button>`).join("")}
+      ${[1,2,3,4,5].map(n=>`<button type="button" data-c="${n}" class="${n===dComplexity?'active':''}">${n}</button>`).join("")}
     </div>
 
     <div class="task-row">
-      <div><label for="t-est">預估工時</label><input type="number" id="t-est" min="0" step="0.5" value="1"></div>
-      <div><label for="t-act">實際工時</label><input type="number" id="t-act" min="0" step="0.5" value="1"></div>
+      <div><label for="t-est">預估工時</label><input type="number" id="t-est" min="0" step="0.5" value="${dEst}"></div>
+      <div><label for="t-act">實際工時</label><input type="number" id="t-act" min="0" step="0.5" value="${dAct}"></div>
     </div>
 
     <label for="t-status">完成狀態</label>
@@ -420,11 +437,11 @@ function taskFormHTML(){
     <label for="t-planned">原訂完成日（選填）</label>
     <input type="date" id="t-planned">
 
-    <label for="t-evidence">證據連結（PR/commit/部署網址/雲端硬碟/截圖，強烈建議填寫）</label>
-    <input type="url" id="t-evidence" placeholder="https://...">
+    <label for="t-evidence">證據連結（強烈建議填寫，https 開頭的連結可信度最高）</label>
+    <input type="url" id="t-evidence" placeholder="https://...（PR/commit/部署網址/雲端硬碟）">
     <div id="t-noevidence-wrap" style="display:none;">
       <label for="t-noevidence">沒有連結的話，簡短說明原因</label>
-      <input type="text" id="t-noevidence" placeholder="例：內部系統無公開連結，可截圖說明">
+      <input type="text" id="t-noevidence" placeholder="例：內部系統無公開連結，可截圖給主管">
     </div>
 
     <label for="t-note">備註（選填）</label>
@@ -450,19 +467,29 @@ function bindEvents(){
   document.querySelectorAll("[data-remove]").forEach(btn=>{
     btn.onclick = () => removeDraft(Number(btn.dataset.remove));
   });
+  document.querySelectorAll("[data-copy-today]").forEach(btn=>{
+    btn.onclick = () => openTaskForm(state.todayTasks[Number(btn.dataset.copyToday)]);
+  });
+  document.querySelectorAll("[data-copy-draft]").forEach(btn=>{
+    btn.onclick = () => openTaskForm(state.drafts[Number(btn.dataset.copyDraft)]);
+  });
 
   if ($("btn-add-task")){
-    $("btn-add-task").onclick = () => {
-      $("form-slot").innerHTML = taskFormHTML();
-      bindFormEvents();
-      $("form-slot").scrollIntoView({behavior:"smooth"});
-    };
+    $("btn-add-task").onclick = () => openTaskForm(null);
   }
+}
+
+function openTaskForm(source){
+  copySourceTask = source || null;
+  const slot = document.getElementById("form-slot");
+  slot.innerHTML = taskFormHTML();
+  bindFormEvents();
+  slot.scrollIntoView({behavior:"smooth"});
 }
 
 function bindFormEvents(){
   const $ = (id) => document.getElementById(id);
-  let complexity = 2;
+  let complexity = Number($("t-complexity").querySelector(".active")?.dataset.c) || 2;
 
   $("t-complexity").querySelectorAll("button").forEach(btn=>{
     btn.onclick = () => {
@@ -479,24 +506,34 @@ function bindFormEvents(){
     } else { hint.innerHTML = ""; }
   };
 
+  $("t-desc").oninput = () => {
+    const len = $("t-desc").value.trim().length;
+    const hint = $("t-desc-hint");
+    hint.innerHTML = (len>0 && len<MIN_DESC_LENGTH)
+      ? `<div class="hint warn">描述有點簡短，建議具體說明做了什麼，有助於提高回報可信度</div>` : "";
+  };
+
   $("t-evidence").oninput = () => {
     $("t-noevidence-wrap").style.display = $("t-evidence").value.trim() ? "none" : "block";
   };
-  $("t-noevidence-wrap").style.display = "block";
+  $("t-noevidence-wrap").style.display = $("t-evidence").value.trim() ? "none" : "block";
 
-  $("btn-cancel-task").onclick = () => { $("form-slot").innerHTML = ""; };
+  $("btn-cancel-task").onclick = () => { copySourceTask = null; document.getElementById("form-slot").innerHTML = ""; };
 
   $("btn-save-task").onclick = () => {
     const desc = $("t-desc").value.trim();
     if (!desc){ alert("請填寫任務描述"); return; }
     const date = $("t-date").value || todayStr();
+    const project = $("t-project").value.trim();
+    saveJSON(STORAGE_KEY_LAST, { project, complexity });
     addDraft({
-      date, project: $("t-project").value.trim(), desc,
+      date, project, desc,
       complexity, estHours: Number($("t-est").value)||0, actHours: Number($("t-act").value)||0,
       status: $("t-status").value, plannedDate: $("t-planned").value || "",
       evidenceUrl: $("t-evidence").value.trim(), noEvidenceReason: $("t-noevidence").value.trim(),
       note: $("t-note").value.trim()
     });
+    copySourceTask = null;
     document.getElementById("form-slot").innerHTML = "";
   };
 }

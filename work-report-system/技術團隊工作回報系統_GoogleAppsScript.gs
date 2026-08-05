@@ -1,5 +1,5 @@
 /*****************************************************************
- * 程優教育科技 ｜ 技術團隊工作回報系統（Google 一鍵建置）
+ * 程優教育科技 ｜ 克雷斯技術團隊工作回報系統（Google 一鍵建置）
  * ---------------------------------------------------------------
  * 這段程式會自動幫你建立一份 Google 試算表當後台資料庫，內含：
  *   設定_人員對照（花名冊/PIN/GitHub對照）
@@ -28,7 +28,7 @@
  *****************************************************************/
 
 /* ===== 分頁名稱 ===== */
-var SS_NAME = '程優｜技術團隊工作回報系統（後台）';
+var SS_NAME = '程優｜克雷斯技術團隊工作回報系統（後台）';
 var SHEETS = {
   ROSTER:  '設定_人員對照',
   REPORTS: '每日回報',
@@ -45,6 +45,8 @@ var EXPECTED_HOURS_PER_POINT = 2;      // 1 個複雜度點的預期工時，用
 var DUPLICATE_SIMILARITY_THRESHOLD = 0.85; // 任務描述重複判定門檻（2-gram Jaccard）
 var MAX_ONTIME_BACKFILL_DAYS = 1;      // 補登超過幾天開始視為「補登」旗標
 var ROLLING_WINDOW_DAYS = 7;           // 誠信/產能分數採「過去 N 天」滾動窗口，避免單日資料量太少造成分數暴衝
+var MIN_DESC_LENGTH = 8;               // 任務描述低於此字數視為「內容過於簡略」，難以驗證真實性
+var HOURS_VARIANCE_RATIO = 0.5;        // 實際工時與預估工時相對落差超過此比例，列入「工時落差大」旗標
 
 var WEIGHTS_AUTH_NO_GH = { evidence: 0.40, timing: 0.30, duplicate: 0.20, audit: 0.10 };
 var WEIGHTS_AUTH_GH    = { evidence: 0.25, timing: 0.20, duplicate: 0.15, github: 0.30, audit: 0.10 };
@@ -458,7 +460,7 @@ function computePersonScoreForWindow(name, asOfDate, windowDays) {
   var completed = applicable.filter(function (t) { return t.status === '已完成'; });
 
   var evidenceCoverage = evidenceApplicable.length
-    ? pct(evidenceApplicable.filter(function (t) { return t.hasEvidence; }).length, evidenceApplicable.length)
+    ? clamp0to100(average(evidenceApplicable.map(evidenceQuality)) * 100)
     : 100;
   var timing = timingScore(tasks);
   var duplicate = duplicateScore(applicable);
@@ -493,7 +495,10 @@ function computePersonScoreForWindow(name, asOfDate, windowDays) {
     (githubOn ? githubOutput * prodWeights.github : 0);
 
   var quadrant = classifyQuadrant(authenticity, productivity);
-  var flags = buildFlags({ start: start, end: end, tasks: tasks, evidenceCoverage: evidenceCoverage, duplicate: duplicate, audits: audits });
+  var flags = buildFlags({
+    start: start, end: end, tasks: tasks, applicable: applicable, evidenceApplicable: evidenceApplicable,
+    evidenceCoverage: evidenceCoverage, duplicate: duplicate, audits: audits
+  });
 
   return {
     date: fmtDate(end), name: name, taskCount: applicable.length, completedCount: completed.length,
@@ -526,15 +531,32 @@ function timingScore(tasks) {
   return average(scores);
 }
 
+// 證據可信度分級（非單純有/無二分法，更精準反映真實性）：
+//   1.0 = 附上看起來像網址的證據連結；0.6 = 有填證據欄但不像網址（自由文字聲稱）；
+//   0.4 = 沒附連結但誠實說明原因（透明但不可驗證）；0 = 完全沒有
+function evidenceQuality(t) {
+  var url = t.evidenceUrl ? String(t.evidenceUrl).trim() : '';
+  if (url) return /^https?:\/\//i.test(url) ? 1 : 0.6;
+  var reason = t.noEvidenceReason ? String(t.noEvidenceReason).trim() : '';
+  return reason ? 0.4 : 0;
+}
+
+// 只比對「同一天」內的任務描述重複度，而非整個滾動窗口——多日延續同一項工作
+// （例如連續 3 天修同一個報表 bug）是正常現象，不應被誤判為灌水；同一天內
+// 出現高度相似的多筆描述，才是比較可能的「灌水湊筆數」訊號。
 function duplicateScore(tasks) {
-  var descTasks = tasks.filter(function (t) { return t.desc && String(t.desc).trim(); });
+  var descTasks = tasks.filter(function (t) { return t.desc && String(t.desc).trim().length >= 4; });
   if (descTasks.length < 2) return 100;
+  var byDate = groupBy(descTasks, 'date');
   var dupCount = 0;
-  for (var i = 0; i < descTasks.length; i++) {
-    for (var j = 0; j < i; j++) {
-      if (bigramJaccard(descTasks[i].desc, descTasks[j].desc) >= DUPLICATE_SIMILARITY_THRESHOLD) { dupCount++; break; }
+  Object.keys(byDate).forEach(function (d) {
+    var dayTasks = byDate[d];
+    for (var i = 0; i < dayTasks.length; i++) {
+      for (var j = 0; j < i; j++) {
+        if (bigramJaccard(dayTasks[i].desc, dayTasks[j].desc) >= DUPLICATE_SIMILARITY_THRESHOLD) { dupCount++; break; }
+      }
     }
-  }
+  });
   return clamp0to100(100 - (dupCount / descTasks.length) * 100);
 }
 function bigramJaccard(a, b) {
@@ -604,7 +626,25 @@ function buildFlags(ctx) {
   if (ctx.duplicate < 70) flags.push('重複文字疑慮');
   if (ctx.evidenceCoverage < 60) flags.push('證據偏低');
   if (ctx.audits.some(function (a) { return a.status === '查核未通過'; })) flags.push('查核未通過');
+  if (hasShortDescriptions(ctx.evidenceApplicable)) flags.push('內容過於簡略');
+  if (hasHoursVariance(ctx.applicable)) flags.push('工時落差大');
   return flags;
+}
+
+// 半數以上任務描述過短（少於 MIN_DESC_LENGTH 字），內容難以驗證真實性與工作量
+function hasShortDescriptions(tasks) {
+  if (!tasks.length) return false;
+  var shortCount = tasks.filter(function (t) { return String(t.desc || '').trim().length < MIN_DESC_LENGTH; }).length;
+  return shortCount / tasks.length > 0.5;
+}
+
+// 預估工時與實際工時長期落差過大（無論高估或低估），代表自評能力或誠實度可能有問題
+function hasHoursVariance(tasks) {
+  var withEst = tasks.filter(function (t) { return t.estHours > 0; });
+  if (withEst.length < 2) return false;
+  var totalEst = withEst.reduce(function (s, t) { return s + t.estHours; }, 0);
+  var totalAct = withEst.reduce(function (s, t) { return s + t.actHours; }, 0);
+  return Math.abs(totalAct - totalEst) / totalEst > HOURS_VARIANCE_RATIO;
 }
 
 /* ============== 五、每日排程 ============== */
@@ -717,14 +757,38 @@ function groupBy(arr, key) {
  * 觸發器流程快很多。
  */
 function selfTestScoring() {
-  var fixtureTasks = [
-    { batchId: 'b1', name: '測試甲', date: '2026-08-01', desc: '開發登入頁面', complexity: 3, actHours: 4, status: '已完成', backfillDays: 0, hasEvidence: true, plannedDate: '2026-08-01' },
-    { batchId: 'b1', name: '測試甲', date: '2026-08-01', desc: '修正登入頁面樣式問題', complexity: 1, actHours: 1, status: '已完成', backfillDays: 0, hasEvidence: true, plannedDate: '' },
-    { batchId: 'b2', name: '測試甲', date: '2026-08-02', desc: '開發登入頁面', complexity: 1, actHours: 1, status: '已完成', backfillDays: 0, hasEvidence: false, plannedDate: '' }
+  // 同一天內兩筆描述幾乎相同 → 應被判定為灌水重複；跨日的相同描述（第4筆延續
+  // 第1筆的登入頁面工作到隔天）屬正常多日任務，不應被誤判為重複
+  var dupTasks = [
+    { date: '2026-08-01', desc: '開發登入頁面' },
+    { date: '2026-08-01', desc: '開發登入頁面' },
+    { date: '2026-08-02', desc: '開發登入頁面' }
   ];
-  Logger.log('timingScore（皆準時送出，應接近100）：' + timingScore(fixtureTasks));
-  Logger.log('duplicateScore（第1、3筆描述完全相同，應明顯低於100）：' + duplicateScore(fixtureTasks));
+  var contTasks = [
+    { date: '2026-08-01', desc: '開發登入頁面' },
+    { date: '2026-08-02', desc: '開發登入頁面' },
+    { date: '2026-08-03', desc: '開發登入頁面' }
+  ];
+  var timingTasks = [
+    { batchId: 'b1', date: '2026-08-01', backfillDays: 0 },
+    { batchId: 'b1', date: '2026-08-01', backfillDays: 0 }
+  ];
+
+  Logger.log('timingScore（皆準時送出，應接近100）：' + timingScore(timingTasks));
+  Logger.log('duplicateScore(同日重複兩筆，應明顯低於100)：' + duplicateScore(dupTasks));
+  Logger.log('duplicateScore(跨日延續同一任務，不應被扣分，應為100)：' + duplicateScore(contTasks));
   Logger.log('bigramJaccard(開發登入頁面, 修正登入頁面樣式問題)（應為中等相似度）：' + bigramJaccard('開發登入頁面', '修正登入頁面樣式問題').toFixed(2));
+
+  Logger.log('evidenceQuality(有https連結)（應為1）：' + evidenceQuality({ evidenceUrl: 'https://github.com/x/y/pull/1' }));
+  Logger.log('evidenceQuality(有填但非網址)（應為0.6）：' + evidenceQuality({ evidenceUrl: '已截圖給PM' }));
+  Logger.log('evidenceQuality(無連結但有說明原因)（應為0.4）：' + evidenceQuality({ evidenceUrl: '', noEvidenceReason: '內部系統無公開連結' }));
+  Logger.log('evidenceQuality(完全沒填)（應為0）：' + evidenceQuality({ evidenceUrl: '', noEvidenceReason: '' }));
+
+  Logger.log('hasShortDescriptions(半數以上過短)（應為true）：' + hasShortDescriptions([{ desc: '做東西' }, { desc: '修bug' }, { desc: '這是一段夠長、可驗證的具體任務描述' }]));
+  Logger.log('hasHoursVariance(兩筆預估皆嚴重偏離實際)（應為true）：' + hasHoursVariance([{ estHours: 3, actHours: 10 }, { estHours: 2, actHours: 7 }]));
+  Logger.log('hasHoursVariance(預估與實際接近)（應為false）：' + hasHoursVariance([{ estHours: 3, actHours: 3.5 }, { estHours: 2, actHours: 2.2 }]));
+  Logger.log('hasHoursVariance(僅1筆資料不足以判斷，應為false)：' + hasHoursVariance([{ estHours: 3, actHours: 10 }]));
+
   Logger.log('classifyQuadrant(80,80)（應為 明星型）：' + classifyQuadrant(80, 80));
   Logger.log('classifyQuadrant(50,85)（應為 需查核型）：' + classifyQuadrant(50, 85));
   Logger.log('classifyQuadrant(85,50)（應為 待協助型）：' + classifyQuadrant(85, 50));
