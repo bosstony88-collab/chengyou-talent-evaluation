@@ -5,9 +5,10 @@
 ## 📦 內容
 | 檔案 | 說明 |
 |---|---|
+| `index.html` | **入口頁**。兩張卡片分別連到回報頁與儀表板，部署平台（含 Manus）指定入口頁時用這個。 |
 | `report.html` | **團隊回報頁**。手機優先，姓名+PIN 登入後逐筆填寫今日任務；記得上次的專案/複雜度、可一鍵「延續／複製」既有任務，送出即寫入試算表。 |
 | `dashboard.html` | **CEO 儀表板**。3D 立體「誠信×產能」總覽（淡色漸層科技風）＋ 評比等級、工作建議、警示中心、團隊排行榜、個人熱力圖／雷達圖／趨勢圖／任務狀態與專案時間分佈／任務明細。 |
-| `技術團隊工作回報系統_GoogleAppsScript.gs` | 後端：一鍵建置試算表 + Web App API + 每日排程計分（＋選用 GitHub 比對模組）。 |
+| `技術團隊工作回報系統_GoogleAppsScript.gs` | 後端：一鍵建置試算表 + Web App API + 每日排程計分（＋選用 GitHub 比對模組）。此檔**不上傳到靜態託管平台**，是貼到 script.google.com 用的。 |
 | `demo-data.json` | 示範資料。兩個頁面在 `API_URL` 未設定時會自動讀取，方便在部署 Apps Script 之前先預覽介面。 |
 | `建置與使用說明.md` | 完整部署與操作說明（含評分邏輯細節、CORS 注意事項、GitHub 模組啟用方式）。 |
 
@@ -29,12 +30,17 @@ const API_URL = "";
 ```
 換成剛剛複製的 `.../exec` 網址。（選用）在 `dashboard.html` 設定 `ADMIN_KEY`，需與 Apps Script 端一致才能使用「查核標記」功能——留空的話系統會在第一次使用時跳出提示輸入，僅存在瀏覽器當次工作階段，不會寫進檔案。
 
-### 3. 部署成網站
-把整個 `work-report-system/` 資料夾拖進 **Netlify Drop**（https://app.netlify.com/drop ，免註冊）即可取得兩個公開網址：
-- `https://xxxx.netlify.app/report.html` → 發給克雷斯技術團隊
-- `https://xxxx.netlify.app/dashboard.html` → CEO 自己用
+> ⚠️ 這一步沒做的話，部署出去的網站兩頁都會停在「🧪 示範模式」——畫面看得到、能操作，但資料不會真的送到你的試算表。**建議先完成第 1、2 步，再打包部署**，一次到位。
 
-也可用 GitHub Pages / Cloudflare Pages / Vercel，一樣是靜態託管。
+### 3. 部署成網站
+
+**在 Manus 上部署**：把整個 `work-report-system` 資料夾壓縮成 zip 上傳，給 Manus 這段指令：
+
+> 「請把這個壓縮檔當成**靜態網站**部署，入口頁是 `index.html`，部署後給我公開網址。」
+
+Manus 會回傳一個像 `https://xxxx.manus.app` 的網址，打開會看到入口頁，兩張卡片分別連到「技術人員每日回報」與「CEO 儀表板」，把這個網址分享給團隊，各自點對應的卡片即可。
+
+**其他平台**：也可以把整個資料夾拖進 **Netlify Drop**（https://app.netlify.com/drop ，免註冊）、或用 GitHub Pages / Cloudflare Pages / Vercel，一樣是純靜態託管，入口頁一樣指定 `index.html`。
 
 ---
 

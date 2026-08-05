@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>克雷斯技術團隊工作回報系統</title>
+<style>
+  :root{
+    --bg1:#eef4ff; --bg2:#f7ecff; --bg3:#fef6ef;
+    --ink:#2b2f3a; --sub:#6b7280;
+    --glass:rgba(255,255,255,.62); --glass-strong:rgba(255,255,255,.85);
+    --border:rgba(255,255,255,.7);
+    --accent1:#6d8cff; --accent2:#b98cff; --accent3:#ff9ecb;
+    --shadow:0 8px 32px rgba(45,55,95,.10);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;min-height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+    color:var(--ink);
+    background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 50%,var(--bg3) 100%);
+    background-attachment:fixed;
+    min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    padding:24px;
+  }
+  .wrap{max-width:680px;width:100%;}
+  .brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;}
+  .brand .dot{width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,var(--accent1),var(--accent3));box-shadow:0 0 0 7px rgba(109,140,255,.15);}
+  h1{font-size:22px;text-align:center;margin:0 0 4px;font-weight:800;letter-spacing:.3px;}
+  .sub{text-align:center;color:var(--sub);font-size:13.5px;margin:0 0 34px;}
+
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media (max-width:600px){ .cards{grid-template-columns:1fr;} }
+
+  a.card{
+    display:block;text-decoration:none;color:inherit;
+    background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--border);border-radius:22px;box-shadow:var(--shadow);
+    padding:28px 24px;transition:transform .15s ease, box-shadow .15s ease;
+  }
+  a.card:hover{transform:translateY(-3px);box-shadow:0 14px 40px rgba(45,55,95,.16);}
+  a.card:active{transform:translateY(0);}
+  .icon{
+    width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+    font-size:24px;margin-bottom:16px;color:#fff;
+  }
+  .icon.report{background:linear-gradient(135deg,var(--accent1),var(--accent2));}
+  .icon.dash{background:linear-gradient(135deg,var(--accent2),var(--accent3));}
+  a.card h2{font-size:16.5px;margin:0 0 6px;font-weight:800;}
+  a.card p{font-size:12.5px;color:var(--sub);margin:0;line-height:1.6;}
+  a.card .go{display:inline-block;margin-top:14px;font-size:12px;font-weight:700;color:#4a5fd6;}
+
+  .footer-note{text-align:center;color:var(--sub);font-size:11.5px;margin-top:28px;line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><div class="dot"></div></div>
+  <h1>克雷斯技術團隊工作回報系統</h1>
+  <p class="sub">程優教育科技 · 選擇你要進入的頁面</p>
+
+  <div class="cards">
+    <a class="card" href="report.html">
+      <div class="icon report">📝</div>
+      <h2>技術人員每日回報</h2>
+      <p>我是克雷斯技術團隊成員，要登入回報今天的工作內容。</p>
+      <span class="go">開始回報 →</span>
+    </a>
+    <a class="card" href="dashboard.html">
+      <div class="icon dash">📊</div>
+      <h2>CEO 儀表板</h2>
+      <p>我是管理者，要看團隊誠信／產能評比、警示與工作建議。</p>
+      <span class="go">開啟儀表板 →</span>
+    </a>
+  </div>
+
+  <div class="footer-note">
+    首次部署者請先閱讀 README.md／建置與使用說明.md 完成 Google Apps Script 後端設定，<br>
+    並把 API_URL 貼進 report.html 與 dashboard.html，否則兩頁會停留在示範模式（資料不會真正送出）。
+  </div>
+</div>
+</body>
+</html>
