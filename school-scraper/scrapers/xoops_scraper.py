@@ -47,6 +47,10 @@ ROSTER_KEYWORDS = ["編班", "導師編配", "導師名單", "班級編制", "�
 # 課程計畫等大型公文常跟編班公告一起被附加/轉貼，內容是課程規劃而非班級名單，
 # 卻常見「詳見第○○頁」這類頁碼佔位符造成誤判，且文件通常很大、解析耗時，直接跳過不下載
 PDF_FILENAME_SKIP_KEYWORDS = ["課程計畫"]
+# 中興國中實跑發現：擴大附件偵測範圍後，抓到的其實是每頁都有的側邊欄連結
+# （定期考試命題格式、答案公佈版等考試相關文件範本），跟公告內容完全無關，
+# 檔名是英文（sectionformat3.doc）沒辦法靠檔名過濾，只能靠連結顯示文字判斷
+PDF_LINK_TEXT_SKIP_KEYWORDS = ["命題格式", "答案公佈", "命題範圍", "考試格式"]
 # 附件連結不是每校都乾脆用「.pdf」結尾——同德國中的下載連結是
 # "index.php?op=tufdl&files_sn=N#檔名.pdf"（湊巧檔名部分讓endswith也抓得到)，
 # 但有些學校的tufdl下載連結沒有這個檔名fragment，單純endswith(".pdf")會漏掉，
@@ -324,6 +328,7 @@ class XoopsScraper(BaseSchoolScraper):
                 for a in article_soup.find_all("a", href=True)
                 if (_ATTACHMENT_LINK_RE.search(a["href"]) or _XOOPS_DOWNLOAD_RE.search(a["href"]))
                 and not any(kw in unquote(a["href"]) for kw in PDF_FILENAME_SKIP_KEYWORDS)
+                and not any(kw in a.get_text(strip=True) for kw in PDF_LINK_TEXT_SKIP_KEYWORDS)
             ]
             # 上限：實測發現有公告一次貼多個不相關PDF附件，若某個附件網址連線異常（例如
             # IPv6路由問題導致逼近逾時上限才失敗），不設上限會讓單篇公告拖很久
