@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-05T00:40:20.139515+00:00",
+  "generated_at": "2026-08-05T00:42:28.761416+00:00",
   "school_count": 21,
   "schools": [
     {
@@ -448,6 +448,18 @@
           "target": "roster",
           "status": "partial",
           "message": "找到 2 篇疑似編班公告，但都解析不出班級-導師配對或遮罩學生名單，可能是公告格式與預期的regex不符，需要人工檢查該公告原文/PDF格式",
+          "run_at": "2026-08-05T00:42:28.141626+00:00"
+        },
+        {
+          "target": "calendar",
+          "status": "failed",
+          "message": "tad_cal策略：在 https://www.chjhs.tyc.edu.tw/modules/tadnews/ 及其連結頁面中找不到任何 event.php?sn= 事件連結，可能是頁面結構與預期不同或需要人工核對正確網址｜公告PDF備援策略：在 https://www.chjhs.tyc.edu.tw/modules/tadnews/ 掃描了 40 篇公告標題，找不到含「行事曆」「校歷」等關鍵字的公告",
+          "run_at": "2026-08-05T00:42:03.661836+00:00"
+        },
+        {
+          "target": "roster",
+          "status": "partial",
+          "message": "找到 2 篇疑似編班公告，但都解析不出班級-導師配對或遮罩學生名單，可能是公告格式與預期的regex不符，需要人工檢查該公告原文/PDF格式",
           "run_at": "2026-08-05T00:36:31.290835+00:00"
         },
         {
@@ -455,18 +467,6 @@
           "status": "failed",
           "message": "tad_cal策略：在 https://www.chjhs.tyc.edu.tw/modules/tadnews/ 及其連結頁面中找不到任何 event.php?sn= 事件連結，可能是頁面結構與預期不同或需要人工核對正確網址｜公告PDF備援策略：在 https://www.chjhs.tyc.edu.tw/modules/tadnews/ 掃描了 40 篇公告標題，找不到含「行事曆」「校歷」等關鍵字的公告",
           "run_at": "2026-08-05T00:35:57.373333+00:00"
-        },
-        {
-          "target": "roster",
-          "status": "partial",
-          "message": "找到 2 篇疑似編班公告，但都解析不出班級-導師配對或遮罩學生名單，可能是公告格式與預期的regex不符，需要人工檢查該公告原文/PDF格式",
-          "run_at": "2026-08-04T17:31:21.282037+00:00"
-        },
-        {
-          "target": "calendar",
-          "status": "failed",
-          "message": "tad_cal策略：在 https://www.chjhs.tyc.edu.tw/modules/tadnews/ 及其連結頁面中找不到任何 event.php?sn= 事件連結，可能是頁面結構與預期不同或需要人工核對正確網址｜公告PDF備援策略：在 https://www.chjhs.tyc.edu.tw/modules/tadnews/ 掃描了 40 篇公告標題，找不到含「行事曆」「校歷」等關鍵字的公告",
-          "run_at": "2026-08-04T17:30:44.264280+00:00"
         }
       ]
     },
