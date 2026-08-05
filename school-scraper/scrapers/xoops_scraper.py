@@ -335,6 +335,15 @@ class XoopsScraper(BaseSchoolScraper):
                     if pdf_resp is None:
                         continue
                     pdf_text = extract_pdf_text(pdf_resp.content)
+                    if not pdf_text:
+                        # 空文字可能是圖片掃描PDF、或附件其實不是PDF（例如.docx，
+                        # broadened附件偵測後可能連到非PDF檔案）。記錄Content-Type/檔頭
+                        # 位元組，供下次判斷該不該加對應格式的解析支援
+                        logger.info(
+                            "[%s] 附件 %s 解析不出文字，Content-Type=%s，檔案開頭位元組=%r",
+                            self.school["id"], pdf_url,
+                            pdf_resp.headers.get("Content-Type"), pdf_resp.content[:16],
+                        )
                     pdf_text_cache[pdf_url] = pdf_text
                 pairs.extend(parse_class_teacher_pairs(pdf_text))
                 pairs.extend(parse_class_teacher_table(pdf_text))
