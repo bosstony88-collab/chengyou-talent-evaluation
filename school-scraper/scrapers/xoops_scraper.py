@@ -47,6 +47,12 @@ ROSTER_KEYWORDS = ["編班", "導師編配", "導師名單", "班級編制", "�
 # 課程計畫等大型公文常跟編班公告一起被附加/轉貼，內容是課程規劃而非班級名單，
 # 卻常見「詳見第○○頁」這類頁碼佔位符造成誤判，且文件通常很大、解析耗時，直接跳過不下載
 PDF_FILENAME_SKIP_KEYWORDS = ["課程計畫"]
+# 附件連結不是每校都乾脆用「.pdf」結尾——同德國中的下載連結是
+# "index.php?op=tufdl&files_sn=N#檔名.pdf"（湊巧檔名部分讓endswith也抓得到)，
+# 但有些學校的tufdl下載連結沒有這個檔名fragment，單純endswith(".pdf")會漏掉，
+# 額外比對常見附件副檔名（含query string/fragment前）跟XOOPS慣用的下載端點
+_ATTACHMENT_LINK_RE = re.compile(r"\.(pdf|docx?|xlsx?)(?:[?#]|$)", re.IGNORECASE)
+_XOOPS_DOWNLOAD_RE = re.compile(r"op=tufdl", re.IGNORECASE)
 # 有些學校（例如慈文國中、文昌國中）沒有tad_cal互動式行事曆，而是用公告夾帶PDF發布，
 # 需要靠這組關鍵字掃描公告標題找出來，當作 tad_cal 策略失敗時的備援
 CALENDAR_ANNOUNCEMENT_KEYWORDS = ["行事曆", "校歷", "行事簡曆", "行事日曆"]
@@ -316,7 +322,7 @@ class XoopsScraper(BaseSchoolScraper):
             pdf_links = [
                 urljoin(article_url, a["href"])
                 for a in article_soup.find_all("a", href=True)
-                if a["href"].lower().endswith(".pdf")
+                if (_ATTACHMENT_LINK_RE.search(a["href"]) or _XOOPS_DOWNLOAD_RE.search(a["href"]))
                 and not any(kw in unquote(a["href"]) for kw in PDF_FILENAME_SKIP_KEYWORDS)
             ]
             # 上限：實測發現有公告一次貼多個不相關PDF附件，若某個附件網址連線異常（例如
@@ -414,6 +420,14 @@ class XoopsScraper(BaseSchoolScraper):
                     logger.info(
                         "[%s] 公告「%s」所有來源皆無「班」字內容，可能是圖片掃描PDF或內容過短，來源明細: %s",
                         self.school["id"], title, lengths,
+                    )
+                if not pdf_links:
+                    # 完全沒偵測到附件連結時，把頁面上所有連結都印出來，供下次判斷
+                    # 真正的名單附件連結長什麼樣子（是否用了目前規則沒涵蓋到的網址格式）
+                    all_hrefs = [a["href"] for a in article_soup.find_all("a", href=True)][:25]
+                    logger.info(
+                        "[%s] 公告「%s」頁面上沒偵測到任何附件連結，該頁全部連結(最多25個): %s",
+                        self.school["id"], title, all_hrefs,
                     )
 
         if not all_assignments and not all_student_entries:
