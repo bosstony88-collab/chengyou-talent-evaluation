@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>克雷斯技術團隊工作回報｜CEO 儀表板</title>
+<style>
+  :root{
+    --bg1:#eef4ff; --bg2:#f7ecff; --bg3:#fef6ef;
+    --ink:#2b2f3a; --sub:#6b7280;
+    --glass:rgba(255,255,255,.66); --glass-strong:rgba(255,255,255,.88);
+    --border:rgba(255,255,255,.75);
+    --accent1:#6d8cff; --accent2:#b98cff;
+    --q-star:#2fae74; --q-suspect:#d9971f; --q-stuck:#5b7cf0; --q-risk:#e0526a;
+    --shadow:0 10px 34px rgba(45,55,95,.12);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;color:var(--ink);}
+  #space{position:fixed;inset:0;z-index:0;
+    background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 50%,var(--bg3) 100%);}
+  #space .blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;}
+  #space .b1{width:420px;height:420px;background:#c9d8ff;top:-100px;left:-80px;}
+  #space .b2{width:380px;height:380px;background:#f2c9f7;bottom:-120px;right:-60px;}
+  #space .b3{width:300px;height:300px;background:#ffe1c9;top:40%;left:60%;}
+  #scene{position:fixed;inset:0;z-index:1;touch-action:none;}
+  canvas{display:block;}
+
+  #hud{position:fixed;left:0;right:0;top:0;z-index:20;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:12px 16px;background:linear-gradient(to bottom, rgba(255,255,255,.55), rgba(255,255,255,0));backdrop-filter:blur(6px);}
+  #hud h1{font-size:15px;margin:0;font-weight:800;white-space:nowrap;}
+  #hud h1 small{display:block;font-size:11px;font-weight:500;color:var(--sub);}
+  .pillgroup{display:flex;gap:6px;background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:4px;box-shadow:var(--shadow);}
+  .pillgroup button{border:none;background:transparent;padding:7px 12px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--sub);cursor:pointer;}
+  .pillgroup button.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;}
+  select#personFilter{border:1px solid var(--border);border-radius:12px;padding:9px 12px;font-size:12.5px;background:var(--glass);box-shadow:var(--shadow);font-weight:700;color:var(--ink);}
+  #syncBtn{border:none;border-radius:12px;padding:9px 14px;font-size:12.5px;font-weight:700;cursor:pointer;background:var(--glass);border:1px solid var(--border);box-shadow:var(--shadow);color:var(--ink);}
+  #syncStatus{font-size:11px;color:var(--sub);white-space:nowrap;}
+  .spacer{flex:1;}
+  #demoBadge{background:rgba(230,162,60,.18);color:#9a6b0f;border:1px solid rgba(230,162,60,.35);font-size:11px;font-weight:700;padding:6px 10px;border-radius:10px;}
+
+  .glass-panel{background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);}
+
+  #teamPanel{position:fixed;left:16px;top:78px;bottom:16px;width:308px;z-index:15;
+    display:flex;flex-direction:column;overflow:hidden;}
+  #teamPanel .th{padding:14px 16px 8px;display:flex;align-items:center;gap:8px;}
+  #teamPanel .th b{white-space:nowrap;}
+  #teamPanel .th #teamCount{margin-left:auto;white-space:nowrap;}
+  .mini-toggle{border:1px solid var(--border);background:rgba(255,255,255,.6);border-radius:8px;padding:3px 9px;
+    font-size:10.5px;font-weight:700;color:var(--sub);cursor:pointer;}
+  .mini-toggle.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border-color:transparent;}
+  #teamPanel .th b{font-size:13.5px;}
+  .legend{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 10px;font-size:10.5px;color:var(--sub);}
+  .legend span{display:inline-flex;align-items:center;gap:4px;}
+  .legend i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  #teamList{overflow-y:auto;padding:0 10px 12px;flex:1;}
+  .person-row{background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.8);border-radius:14px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:transform .1s;}
+  .person-row:active{transform:scale(.98);}
+  .person-row .top{display:flex;justify-content:space-between;align-items:center;gap:6px;}
+  .person-row .name{font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px;}
+  .person-row .qdot{width:9px;height:9px;border-radius:50%;flex:none;}
+  .grade-dot{width:20px;height:20px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;
+    color:#fff;font-size:10px;font-weight:900;}
+  .person-row .badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;color:#fff;}
+  .person-row .scores{display:flex;gap:10px;font-size:10.5px;color:var(--sub);margin-top:5px;}
+  .person-row .scores b{color:var(--ink);}
+  .mini-heat{display:flex;gap:2px;margin-top:7px;}
+  .mini-heat i{flex:1;height:9px;border-radius:2px;background:#e6e9f0;}
+  .flag-chip{display:inline-block;font-size:9.5px;background:rgba(224,82,106,.14);color:#b8354a;border-radius:6px;padding:1px 6px;margin-top:5px;margin-right:4px;}
+  .top-suggestion{font-size:10.5px;color:var(--sub);margin-top:6px;line-height:1.4;padding-top:6px;border-top:1px dashed rgba(107,114,128,.2);}
+  #teamEmpty{padding:30px 14px;text-align:center;color:var(--sub);font-size:12.5px;}
+
+  #alertToggle{border:1px solid var(--border);border-radius:12px;padding:9px 14px;font-size:12.5px;font-weight:700;cursor:pointer;
+    background:var(--glass);box-shadow:var(--shadow);color:#b8354a;}
+  #alertToggle.active{background:linear-gradient(135deg,#e0526a,#d9971f);color:#fff;}
+  #alertToggle:disabled{opacity:.45;cursor:default;}
+
+  #teamToggle,#autoRotateBtn{position:fixed;z-index:22;border:none;border-radius:16px;box-shadow:var(--shadow);
+    background:var(--glass-strong);font-weight:700;cursor:pointer;}
+  #teamToggle{display:none;left:16px;bottom:16px;padding:12px 18px;font-size:13px;}
+  #autoRotateBtn{right:16px;bottom:16px;padding:12px 14px;font-size:16px;}
+
+  #detail{position:fixed;top:0;right:-420px;width:400px;height:100%;z-index:25;
+    transition:right .32s cubic-bezier(.2,.8,.2,1);padding:16px;overflow-y:auto;}
+  #detail.open{right:0;}
+  #detail .dhead{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px;}
+  #detail .dhead h2{margin:0;font-size:18px;}
+  #detail .dhead .status{font-size:11px;color:var(--sub);margin-top:2px;}
+  #detail .close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--sub);padding:4px;}
+  .score-row{display:flex;gap:10px;margin-bottom:14px;}
+  .score-box{flex:1;border-radius:16px;padding:12px 14px;text-align:center;}
+  .score-box .num{font-size:26px;font-weight:900;}
+  .score-box .lbl{font-size:11px;color:var(--sub);font-weight:700;margin-top:2px;}
+  .score-box.auth{background:rgba(109,140,255,.14);}
+  .score-box.prod{background:rgba(185,140,255,.14);}
+  .qbadge{display:inline-block;font-size:11px;font-weight:800;color:#fff;padding:4px 10px;border-radius:999px;margin-top:6px;}
+  .grade-badge-lg{width:56px;height:56px;border-radius:16px;color:#fff;font-size:22px;font-weight:900;
+    display:flex;align-items:center;justify-content:center;flex:none;box-shadow:var(--shadow);}
+  .insight-list{list-style:none;margin:0;padding:0;}
+  .insight-list li{font-size:12px;line-height:1.6;padding:8px 10px;border-radius:10px;margin-bottom:6px;}
+  .insight-list li.alert-high{background:rgba(224,82,106,.13);color:#b8354a;}
+  .insight-list li.alert-medium{background:rgba(217,151,31,.13);color:#9a6b0f;}
+  .insight-list li.suggestion{background:rgba(109,140,255,.1);color:#3a51c9;}
+  .section-title{font-size:12.5px;font-weight:800;margin:16px 0 8px;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;}
+  .heat-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .heat-cell{aspect-ratio:1;border-radius:4px;background:#e6e9f0;position:relative;}
+  .heat-cell.leave{background:repeating-linear-gradient(45deg,#cbd0dc,#cbd0dc 3px,#dfe2ea 3px,#dfe2ea 6px);}
+  .heat-cell.miss{background:rgba(224,82,106,.35);}
+  .heat-cell.audit-bad{outline:2px solid #e0526a;outline-offset:1px;}
+  .chart-wrap{background:rgba(255,255,255,.55);border-radius:16px;padding:10px;margin-bottom:6px;}
+  #detail table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:6px;}
+  #detail th{text-align:left;font-size:10px;color:var(--sub);padding:4px 4px;border-bottom:1px solid rgba(107,114,128,.2);}
+  #detail td{padding:6px 4px;border-bottom:1px solid rgba(107,114,128,.12);vertical-align:top;}
+  .status-tag{font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;}
+  .status-已完成{background:rgba(47,174,116,.16);color:#1f7a52;}
+  .status-進行中{background:rgba(91,124,240,.16);color:#3a51c9;}
+  .status-延遲或卡關{background:rgba(224,82,106,.16);color:#b8354a;}
+  .status-取消{background:rgba(107,114,128,.16);color:#4b5563;}
+  .status-請假或無工作{background:rgba(185,140,255,.16);color:#7a4fd6;}
+  .ev-link{color:var(--accent1);text-decoration:none;font-size:11px;}
+  .audit-box{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap;}
+  .audit-box select,.audit-box input{font-size:11.5px;padding:6px 8px;border-radius:8px;border:1px solid rgba(107,114,128,.25);}
+  .audit-box button{font-size:11.5px;padding:6px 10px;border-radius:8px;border:none;background:var(--accent1);color:#fff;font-weight:700;cursor:pointer;}
+
+  @media (max-width:900px){
+    #teamPanel{left:10px;right:10px;top:auto;bottom:-100%;width:auto;height:62%;transition:bottom .3s ease;border-radius:22px 22px 0 0;}
+    #teamPanel.open{bottom:10px;}
+    #teamToggle{display:block;}
+    #detail{width:100%;right:auto;top:auto;bottom:-100%;height:88%;border-radius:22px 22px 0 0;transition:bottom .32s cubic-bezier(.2,.8,.2,1);}
+    #detail.open{bottom:0;right:0;}
+    #hud h1{font-size:13px;}
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>window.THREE||document.write('<scr'+'ipt src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/scr'+'ipt>');</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="space"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+<div id="scene"></div>
+
+<div id="hud">
+  <h1>克雷斯技術團隊工作回報｜CEO 儀表板<small>誠信 × 產能 立體總覽</small></h1>
+  <div class="pillgroup" id="rangePills">
+    <button data-r="today">今日</button>
+    <button data-r="week">本週</button>
+    <button data-r="month" class="active">本月</button>
+    <button data-r="all">近90天</button>
+  </div>
+  <select id="personFilter"><option value="ALL">全部成員</option></select>
+  <button id="alertToggle">🔔 只看警示</button>
+  <div class="spacer"></div>
+  <span id="syncStatus"></span>
+  <button id="syncBtn">☁ 同步</button>
+  <span id="demoBadge" style="display:none;">🧪 示範資料</span>
+</div>
+
+<div id="teamPanel" class="glass-panel">
+  <div class="th">
+    <b>團隊總覽</b>
+    <button id="rankToggle" class="mini-toggle">📊 排行榜</button>
+    <span style="font-size:11px;color:var(--sub);" id="teamCount"></span>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--q-star)"></i>明星型</span>
+    <span><i style="background:var(--q-suspect)"></i>需查核型</span>
+    <span><i style="background:var(--q-stuck)"></i>待協助型</span>
+    <span><i style="background:var(--q-risk)"></i>高風險型</span>
+  </div>
+  <div id="rankChartWrap" style="display:none;padding:2px 16px 12px;"><canvas id="rankChart"></canvas></div>
+  <div id="teamList"></div>
+</div>
+<button id="teamToggle">📋 團隊總覽</button>
+<button id="autoRotateBtn" title="自動旋轉開關">⟳</button>
+
+<div id="detail" class="glass-panel"></div>
+
+<script>
+/* ====== 設定 ====== */
+const API_URL = "";
+let ADMIN_KEY = "";
+const ROLLING_WINDOW_DAYS = 7;
+const QUADRANT_THRESHOLD = 70;
+const DUPLICATE_SIMILARITY_THRESHOLD = 0.85;
+const MIN_DESC_LENGTH = 8;
+const HOURS_VARIANCE_RATIO = 0.5;
+const isDemo = !API_URL;
+
+const QCOLOR = { "明星型":"#2fae74", "需查核型":"#d9971f", "待協助型":"#5b7cf0", "高風險型":"#e0526a" };
+const GRADE_COLOR = { "A+":"#1f8a56", "A":"#2fae74", "B":"#5b7cf0", "C":"#d9971f", "D":"#e0526a" };
+const QCOLOR_HEX = { "明星型":0x2fae74, "需查核型":0xd9971f, "待協助型":0x5b7cf0, "高風險型":0xe0526a };
+
+let db = { roster:[], tasks:[], daily:[], audit:[], githubEnabled:false };
+let rangeMode = "month";
+let personFilter = "ALL";
+let selectedPerson = null;
+let autoRotate = true;
+let alertFilter = false;
+let rankChartOpen = false;
+let chartRank=null, chartStatus=null, chartProject=null;
+
+/* ====== 日期工具 ====== */
+function fmtDate(d){
+  if (typeof d === "string") return d.slice(0,10);
+  const dt = new Date(d);
+  return dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+}
+function todayStr(){ return fmtDate(new Date()); }
+function addDays(d,n){ const nd = new Date(typeof d==="string"?d+"T00:00:00":d); nd.setDate(nd.getDate()+n); return nd; }
+function rangeDates(){
+  const to = todayStr();
+  let from;
+  if (rangeMode==="today") from = to;
+  else if (rangeMode==="week") from = fmtDate(addDays(new Date(), -6));
+  else if (rangeMode==="month") from = fmtDate(addDays(new Date(), -29));
+  else from = fmtDate(addDays(new Date(), -89));
+  return { from, to };
+}
+function dateList(from, to){
+  const out = []; let cur = new Date(from+"T00:00:00"); const end = new Date(to+"T00:00:00");
+  while (cur<=end){ out.push(fmtDate(cur)); cur = addDays(cur,1); }
+  return out;
+}
+
+/* ====== 資料載入 ====== */
+async function loadDashboard(){
+  const { from, to } = rangeDates();
+  document.getElementById("syncStatus").textContent = "同步中…";
+  try {
+    if (isDemo){
+      const res = await fetch(new URL("demo-data.json", location.href));
+      const fixture = await res.json();
+      db = mergeDemoExtras(fixture);
+      document.getElementById("demoBadge").style.display = "inline-block";
+    } else {
+      const url = API_URL + "?action=dashboard&from=" + from + "&to=" + to + "&person=" + encodeURIComponent(personFilter);
+      const res = await fetch(url);
+      db = await res.json();
+    }
+    populatePersonFilter();
+    renderAll();
+    document.getElementById("syncStatus").textContent = "已同步 " + new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"});
+  } catch(e){
+    document.getElementById("syncStatus").textContent = "同步失敗：" + e.message;
+  }
+}
+function mergeDemoExtras(fixture){
+  const extra = [];
+  (fixture.roster||[]).forEach(r=>{
+    try {
+      const raw = localStorage.getItem("wr_demo_extra_"+r.name);
+      if (raw) JSON.parse(raw).forEach(t=>extra.push(Object.assign({name:r.name,hasEvidence:!!t.evidenceUrl},t)));
+    } catch(e){}
+  });
+  return Object.assign({}, fixture, { tasks:(fixture.tasks||[]).concat(extra) });
+}
+function populatePersonFilter(){
+  const sel = document.getElementById("personFilter");
+  const cur = sel.value || "ALL";
+  sel.innerHTML = `<option value="ALL">全部成員</option>` + (db.roster||[]).map(r=>`<option value="${escAttr(r.name)}">${esc(r.name)}${r.status!=="在職"?"（已停用）":""}</option>`).join("");
+  sel.value = [...sel.options].some(o=>o.value===cur) ? cur : "ALL";
+}
+
+/* ====== 過濾後資料（依日期範圍/人員）====== */
+function filteredRange(){
+  const { from, to } = rangeDates();
+  return { from, to };
+}
+function personsInScope(){
+  return (db.roster||[]).filter(r => personFilter==="ALL" || r.name===personFilter);
+}
+function tasksFor(name, from, to){
+  return (db.tasks||[]).filter(t=>t.name===name && t.date>=from && t.date<=to);
+}
+function auditsFor(name, from, to){
+  return (db.audit||[]).filter(a=>a.name===name && a.date>=from && a.date<=to);
+}
+function dailyFor(name, from, to){
+  return (db.daily||[]).filter(s=>s.name===name && s.date>=from && s.date<=to);
+}
+function latestScore(name, from, to){
+  const rows = dailyFor(name, from, to).slice().sort((a,b)=>a.date<b.date?-1:1);
+  return rows.length ? rows[rows.length-1] : null;
+}
+
+/* ====== 誠信/產能子項拆解（前端近似版，供雷達圖/長條圖說明用；權威分數仍取自後端 daily）====== */
+function pct(a,b){ return b ? clamp0(a/b*100) : 0; }
+function clamp0(x){ return Math.max(0, Math.min(100, x)); }
+function avg(arr){ return arr.length ? arr.reduce((s,x)=>s+x,0)/arr.length : 100; }
+function bigramSet(s){
+  const set = new Set(); const str = String(s||"").replace(/\s+/g,"");
+  for (let i=0;i<str.length-1;i++) set.add(str.substr(i,2));
+  return set;
+}
+function bigramJaccard(a,b){
+  const A=bigramSet(a), B=bigramSet(b);
+  if (!A.size||!B.size) return 0;
+  let inter=0; A.forEach(g=>{ if(B.has(g)) inter++; });
+  const uni = A.size+B.size-inter;
+  return uni ? inter/uni : 0;
+}
+// 證據可信度分級，對應後端 evidenceQuality()：1=像網址的連結、0.6=有填但非網址、0.4=有說明原因、0=完全沒有
+function evidenceQuality(t){
+  const url = t.evidenceUrl ? String(t.evidenceUrl).trim() : "";
+  if (url) return /^https?:\/\//i.test(url) ? 1 : 0.6;
+  const reason = t.noEvidenceReason ? String(t.noEvidenceReason).trim() : "";
+  return reason ? 0.4 : 0;
+}
+function hasShortDescriptions(tasks){
+  if (!tasks.length) return false;
+  const shortCount = tasks.filter(t=>String(t.desc||"").trim().length < MIN_DESC_LENGTH).length;
+  return shortCount/tasks.length > 0.5;
+}
+function hasHoursVariance(tasks){
+  const withEst = tasks.filter(t=>t.estHours>0);
+  if (withEst.length<2) return false;
+  const totalEst = withEst.reduce((s,t)=>s+t.estHours,0);
+  const totalAct = withEst.reduce((s,t)=>s+t.actHours,0);
+  return Math.abs(totalAct-totalEst)/totalEst > HOURS_VARIANCE_RATIO;
+}
+
+function computeBreakdown(tasks, audits){
+  const applicable = tasks.filter(t=>t.status!=="取消");
+  const evApplicable = applicable.filter(t=>t.status!=="請假或無工作");
+  const completed = applicable.filter(t=>t.status==="已完成");
+  const evidenceCoverage = evApplicable.length ? clamp0(avg(evApplicable.map(evidenceQuality))*100) : 100;
+
+  const byBatch = {};
+  tasks.forEach(t=>{ (byBatch[t.batchId||t.date] = byBatch[t.batchId||t.date]||[]).push(t); });
+  const timingScores = [];
+  Object.values(byBatch).forEach(batch=>{
+    const distinctDates = new Set(batch.map(t=>t.date));
+    batch.forEach(t=>{
+      const days = Number(t.backfillDays)||0;
+      let s = days<=1?100 : days<=3?70 : days<=7?40 : 10;
+      if (distinctDates.size>=3) s = Math.max(0, s-20);
+      timingScores.push(s);
+    });
+  });
+  const timing = avg(timingScores);
+
+  // 只比對「同一天」內的描述重複度：多日延續同一項工作是正常現象，不應被誤判為灌水
+  const descTasks = applicable.filter(t=>t.desc && String(t.desc).trim().length>=4);
+  const byDate = {};
+  descTasks.forEach(t=>{ (byDate[t.date] = byDate[t.date]||[]).push(t); });
+  let dup = 0;
+  Object.values(byDate).forEach(dayTasks=>{
+    for (let i=0;i<dayTasks.length;i++) for (let j=0;j<i;j++)
+      if (bigramJaccard(dayTasks[i].desc, dayTasks[j].desc) >= DUPLICATE_SIMILARITY_THRESHOLD){ dup++; break; }
+  });
+  const duplicate = descTasks.length>1 ? clamp0(100-(dup/descTasks.length)*100) : 100;
+
+  const auditScore = audits.length ? avg(audits.map(a=>a.status==="查核未通過"?0:100)) : 100;
+  const completionRate = applicable.length ? pct(completed.length, applicable.length) : 100;
+  const weightedOutput = completed.reduce((s,t)=>s+(t.complexity||0),0);
+  const totalHours = applicable.reduce((s,t)=>s+(t.actHours||0),0);
+  const withPlan = completed.filter(t=>t.plannedDate);
+  const ontime = withPlan.length ? pct(withPlan.filter(t=>t.date<=t.plannedDate).length, withPlan.length) : 100;
+  const shortDesc = hasShortDescriptions(evApplicable);
+  const hoursVariance = hasHoursVariance(applicable);
+
+  return { evidenceCoverage, timing, duplicate, auditScore, completionRate, weightedOutput, totalHours, ontime, shortDesc, hoursVariance };
+}
+
+/* ====== 評比等級（A+/A/B/C/D）：誠信與產能的綜合表現，落差越大代表越不均衡，會被額外扣分 ====== */
+function computeGrade(auth, prod){
+  const composite = clamp0((auth+prod)/2 - Math.abs(auth-prod)*0.15);
+  const grade = composite>=90?"A+" : composite>=78?"A" : composite>=62?"B" : composite>=45?"C" : "D";
+  return { grade, composite: Math.round(composite*10)/10, color: GRADE_COLOR[grade] };
+}
+
+/* ====== 警示與工作建議：把分數/旗標轉換成 CEO 看得懂的具體行動建議 ====== */
+function generateInsights(score, bd){
+  const alerts = [], suggestions = [];
+  const flags = String(score.flags||"");
+  if (score.quadrant==="高風險型") alerts.push({ level:"high", text:"誠信與產能皆低於標準，建議儘快安排一對一面談了解實際狀況" });
+  if (score.quadrant==="需查核型") alerts.push({ level:"high", text:"產能數字亮眼但誠信偏低，建議實際查核產出真實性（比對證據連結或詢問細節）" });
+  if (score.quadrant==="待協助型") alerts.push({ level:"medium", text:"產出偏低但誠信良好，可能卡關中，建議主動關心並提供協助，而非究責" });
+  if (flags.includes("缺交")) alerts.push({ level:"high", text:"近期有缺交回報，建議確認是否正常在職與工作中" });
+  if (flags.includes("查核未通過")) alerts.push({ level:"high", text:"先前查核未通過，建議追蹤後續改善狀況" });
+  if (bd.evidenceCoverage < 60) alerts.push({ level:"medium", text:"證據連結覆蓋率偏低，建議提醒每筆任務盡量附上可驗證的連結" });
+  if (bd.duplicate < 70) alerts.push({ level:"medium", text:"同一天內任務描述高度重複，建議確認是否為簡化填寫或真的重複性工作" });
+
+  if (score.quadrant==="明星型") suggestions.push("表現優異，建議公開肯定或給予更具挑戰性的任務");
+  if (bd.timing < 60) suggestions.push("回報常補登、非當天送出，建議了解是否時間管理或回報習慣需要調整");
+  if (bd.shortDesc) suggestions.push("任務描述內容過於簡略，建議引導填寫更具體的工作內容，方便驗證與交接");
+  if (bd.hoursVariance) suggestions.push("預估工時與實際工時落差較大，建議確認是任務估算能力需加強，還是工時填寫不夠誠實");
+  if (bd.ontime < 70) suggestions.push("有原訂完成日的任務常delay，建議確認排期是否過於樂觀");
+  if (!alerts.length && !suggestions.length) suggestions.push("目前表現穩定、無明顯異常，維持現有節奏即可");
+
+  const order = { high:0, medium:1, low:2 };
+  alerts.sort((a,b)=>order[a.level]-order[b.level]);
+  return { alerts, suggestions };
+}
+
+/* ====== 團隊總覽清單 ====== */
+function renderTeamList(){
+  const { from, to } = filteredRange();
+  let rows = personsInScope().map(r=>{
+    const score = latestScore(r.name, from, to);
+    if (!score) return null;
+    const tasks = tasksFor(r.name, from, to);
+    const bd = computeBreakdown(tasks, auditsFor(r.name, from, to));
+    const grade = computeGrade(score.authenticity, score.productivity);
+    const insight = generateInsights(score, bd);
+    return { roster:r, score, tasks, grade, insight };
+  }).filter(Boolean);
+
+  rows.sort((a,b)=>{
+    const rank = q => (q==="高風險型"?0:q==="需查核型"?1:q==="待協助型"?2:3);
+    return rank(a.score.quadrant)-rank(b.score.quadrant) || a.score.authenticity-b.score.authenticity;
+  });
+
+  const totalAlerts = rows.reduce((s,x)=>s+x.insight.alerts.length,0);
+  const alertedPeople = rows.filter(x=>x.insight.alerts.length>0).length;
+  updateAlertToggle(alertedPeople);
+  renderRankChart(rows);
+  if (alertFilter) rows = rows.filter(x=>x.insight.alerts.length>0);
+
+  document.getElementById("teamCount").textContent = rows.length + " 位成員" + (totalAlerts?`．${totalAlerts} 項警示`:"");
+  const list = document.getElementById("teamList");
+  if (!rows.length){ list.innerHTML = `<div id="teamEmpty">${alertFilter?"目前沒有需要警示的成員":"此區間尚無回報資料"}</div>`; return; }
+
+  const days = dateList(from, to).slice(-7);
+  list.innerHTML = rows.map(({roster:r, score, tasks, grade, insight})=>{
+    const heat = days.map(d=>{
+      const dayTasks = tasks.filter(t=>t.date===d);
+      if (!dayTasks.length) return `<i class="heat-cell miss" style="height:9px"></i>`;
+      if (dayTasks.some(t=>t.status==="請假或無工作")) return `<i style="background:#cbd0dc"></i>`;
+      const out = dayTasks.filter(t=>t.status==="已完成").reduce((s,t)=>s+(t.complexity||0),0);
+      const alpha = Math.min(1, .25+out*.18);
+      return `<i style="background:rgba(47,174,116,${alpha})"></i>`;
+    }).join("");
+    const flags = (score.flags||"").split(/[、,]/).filter(Boolean);
+    const topLine = insight.alerts[0] ? "⚠ " + insight.alerts[0].text : insight.suggestions[0];
+    return `<div class="person-row" data-person="${escAttr(r.name)}">
+      <div class="top">
+        <span class="name"><span class="grade-dot" style="background:${grade.color}" title="評比 ${grade.grade}">${grade.grade}</span>${esc(r.name)}${r.status!=="在職"?" 🚫":""}</span>
+        <span class="badge" style="background:${QCOLOR[score.quadrant]||'#999'}">${esc(score.quadrant)}</span>
+      </div>
+      <div class="scores">誠信 <b>${score.authenticity}</b> · 產能 <b>${score.productivity}</b> · ${score.live?"即時":"每日彙總"}</div>
+      <div class="mini-heat">${heat}</div>
+      ${flags.map(f=>`<span class="flag-chip">${esc(f)}</span>`).join("")}
+      ${topLine ? `<div class="top-suggestion">${esc(topLine)}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  list.querySelectorAll(".person-row").forEach(el=>{
+    el.onclick = () => openDetail(el.dataset.person);
+  });
+}
+
+function updateAlertToggle(count){
+  const btn = document.getElementById("alertToggle");
+  if (!btn) return;
+  btn.textContent = "🔔 只看警示" + (count?` (${count})`:"");
+  btn.classList.toggle("active", alertFilter);
+  btn.disabled = count===0 && !alertFilter;
+}
+
+// 團隊排行榜：把所有成員的誠信/產能分數並排比較，一眼看出全隊相對位置
+function renderRankChart(rows){
+  const wrap = document.getElementById("rankChartWrap");
+  const toggle = document.getElementById("rankToggle");
+  toggle.classList.toggle("active", rankChartOpen);
+  wrap.style.display = rankChartOpen ? "block" : "none";
+  if (!rankChartOpen) return;
+  const ctx = document.getElementById("rankChart");
+  if (typeof Chart === "undefined"){ chartFallback(ctx, "圖表函式庫載入失敗，略過排行榜"); return; }
+  const sorted = rows.slice().sort((a,b)=>(b.score.productivity+b.score.authenticity)-(a.score.productivity+a.score.authenticity));
+  if (chartRank) chartRank.destroy();
+  chartRank = new Chart(ctx, { type:"bar", data:{
+    labels: sorted.map(x=>x.roster.name),
+    datasets:[
+      { label:"誠信", data: sorted.map(x=>x.score.authenticity), backgroundColor:"#6d8cff", borderRadius:4 },
+      { label:"產能", data: sorted.map(x=>x.score.productivity), backgroundColor:"#2fae74", borderRadius:4 }
+    ]
+  }, options:{ responsive:true, scales:{ y:{ min:0, max:100, ticks:{ font:{ size:9 } } }, x:{ ticks:{ font:{ size:9 } } } },
+    plugins:{ legend:{ position:"bottom", labels:{ boxWidth:8, font:{ size:9 } } } } } });
+}
+
+/* ====== 詳情面板 ====== */
+let chartRadar=null, chartBar=null, chartTrend=null;
+
+function openDetail(name){
+  selectedPerson = name;
+  const { from, to } = filteredRange();
+  const roster = (db.roster||[]).find(r=>r.name===name) || { name, status:"在職" };
+  const score = latestScore(name, from, to) || { authenticity:0, productivity:0, quadrant:"高風險型", flags:"無資料", taskCount:0 };
+  const tasks = tasksFor(name, from, to).sort((a,b)=>a.date<b.date?1:-1);
+  const audits = auditsFor(name, from, to);
+  const trend = dailyFor(name, from, to).sort((a,b)=>a.date<b.date?-1:1);
+  const bd = computeBreakdown(tasksFor(name, from, to), audits);
+  const grade = computeGrade(score.authenticity, score.productivity);
+  const insight = generateInsights(score, bd);
+
+  const panel = document.getElementById("detail");
+  panel.innerHTML = `
+    <div class="dhead">
+      <div class="grade-badge-lg" style="background:${grade.color}" title="評比等級">${grade.grade}</div>
+      <div style="flex:1;">
+        <h2>${esc(name)}</h2>
+        <div class="status">${esc(roster.status)}${roster.githubUser?" · GitHub: "+esc(roster.githubUser):""}</div>
+        <span class="qbadge" style="background:${QCOLOR[score.quadrant]||'#999'}">${esc(score.quadrant)}</span>
+      </div>
+      <button class="close" id="detailClose">✕</button>
+    </div>
+    <div class="score-row">
+      <div class="score-box auth"><div class="num">${score.authenticity}</div><div class="lbl">誠信分數</div></div>
+      <div class="score-box prod"><div class="num">${score.productivity}</div><div class="lbl">產能分數</div></div>
+    </div>
+    ${score.flags ? `<div>${String(score.flags).split(/[、,]/).filter(Boolean).map(f=>`<span class="flag-chip">${esc(f)}</span>`).join("")}</div>` : ""}
+
+    <div class="section-title">⚠ 警示與工作建議</div>
+    <ul class="insight-list">
+      ${insight.alerts.map(a=>`<li class="alert-${a.level}">⚠ ${esc(a.text)}</li>`).join("")}
+      ${insight.suggestions.map(s=>`<li class="suggestion">💡 ${esc(s)}</li>`).join("")}
+    </ul>
+
+    <div class="section-title">近 7 天出席／產出熱力圖</div>
+    <div class="heat-grid" id="heatGrid"></div>
+
+    <div class="section-title">產能子項雷達圖</div>
+    <div class="chart-wrap"><canvas id="radarChart" height="180"></canvas></div>
+
+    <div class="section-title">誠信子項分數</div>
+    <div class="chart-wrap"><canvas id="barChart" height="160"></canvas></div>
+
+    <div class="section-title">誠信／產能趨勢（每日彙總）</div>
+    <div class="chart-wrap"><canvas id="trendChart" height="160"></canvas></div>
+
+    <div class="section-title">任務狀態與專案時間分佈</div>
+    <div style="display:flex;gap:8px;">
+      <div class="chart-wrap" style="flex:1;min-width:0;"><canvas id="statusChart" height="150"></canvas></div>
+      <div class="chart-wrap" style="flex:1;min-width:0;"><canvas id="projectChart" height="150"></canvas></div>
+    </div>
+
+    <div class="section-title">CEO 查核標記</div>
+    <div class="audit-box">
+      <input type="date" id="auditDate" value="${todayStr()}" max="${todayStr()}">
+      <select id="auditStatus"><option>未查核</option><option>已查核通過</option><option>查核未通過</option></select>
+      <button id="auditSubmit">送出</button>
+    </div>
+    <input type="text" id="auditNote" placeholder="查核備註（選填）" style="width:100%;margin-top:6px;padding:7px 9px;border-radius:8px;border:1px solid rgba(107,114,128,.25);font-size:11.5px;">
+    <div id="auditMsg" style="font-size:11px;margin-top:6px;"></div>
+
+    <div class="section-title">任務明細（${tasks.length} 筆）</div>
+    <table>
+      <thead><tr><th>日期</th><th>任務</th><th>狀態</th><th>證據</th></tr></thead>
+      <tbody>
+        ${tasks.map(t=>`<tr>
+          <td>${esc(t.date)}${Number(t.backfillDays)>1?` <span title="補登">🕒</span>`:""}</td>
+          <td>${esc(t.desc)}<div style="color:var(--sub);font-size:10px;">${esc(t.project||"")} · 複雜度${t.complexity}</div></td>
+          <td><span class="status-tag status-${esc(t.status)}">${esc(t.status)}</span></td>
+          <td>${t.evidenceUrl ? `<a class="ev-link" href="${escAttr(t.evidenceUrl)}" target="_blank" rel="noopener">連結↗</a>` : (t.noEvidenceReason?esc(t.noEvidenceReason):"—")}</td>
+        </tr>`).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--sub);">此區間無任務紀錄</td></tr>`}
+      </tbody>
+    </table>
+  `;
+  panel.classList.add("open");
+  document.getElementById("detailClose").onclick = closeDetail;
+  document.getElementById("auditSubmit").onclick = () => submitAudit(name);
+
+  renderHeatGrid(tasksFor(name, from, to), audits);
+  renderRadar(bd, db.githubEnabled);
+  renderBar(bd, db.githubEnabled);
+  renderTrend(trend);
+  renderStatusChart(tasks);
+  renderProjectChart(tasks);
+
+  if (window.innerWidth <= 900) document.getElementById("teamPanel").classList.remove("open");
+}
+function closeDetail(){ document.getElementById("detail").classList.remove("open"); selectedPerson=null; }
+
+function renderHeatGrid(tasks, audits){
+  const { from, to } = filteredRange();
+  const days = dateList(from, to).slice(-28);
+  const badDates = new Set(audits.filter(a=>a.status==="查核未通過").map(a=>a.date));
+  document.getElementById("heatGrid").innerHTML = days.map(d=>{
+    const dayTasks = tasks.filter(t=>t.date===d);
+    let cls = "heat-cell", style = "";
+    if (!dayTasks.length) cls += " miss";
+    else if (dayTasks.some(t=>t.status==="請假或無工作")) cls += " leave";
+    else {
+      const out = dayTasks.filter(t=>t.status==="已完成").reduce((s,t)=>s+(t.complexity||0),0);
+      style = `background:rgba(47,174,116,${Math.min(1,.2+out*.15)})`;
+    }
+    if (badDates.has(d)) cls += " audit-bad";
+    return `<div class="${cls}" style="${style}" title="${d}"></div>`;
+  }).join("");
+}
+
+// 冪等的降級處理：canvas 保留在 DOM 中（只是隱藏），改插入/更新一個訊息 sibling。
+// 若直接把 canvas 換掉（ctx.replaceWith），像排行榜這種會被重複呼叫的圖表（每次篩選
+// 都重繪）在第二次呼叫時就會因為 getElementById 找不到 canvas 而丟出例外。
+function chartFallback(ctx, text){
+  if (!ctx) return;
+  ctx.style.display = "none";
+  let msg = ctx.nextElementSibling;
+  if (!msg || !msg.classList || !msg.classList.contains("chart-fallback-msg")){
+    msg = document.createElement("div");
+    msg.className = "chart-fallback-msg";
+    msg.style.cssText = "text-align:center;color:var(--sub);font-size:11.5px;padding:20px 0;";
+    ctx.parentNode.insertBefore(msg, ctx.nextSibling);
+  }
+  msg.textContent = text;
+}
+
+function renderRadar(bd, ghOn){
+  const ctx = document.getElementById("radarChart");
+  if (typeof Chart === "undefined"){ chartFallback(ctx, "圖表函式庫載入失敗（可能是網路限制），略過雷達圖"); return; }
+  const labels = ["加權產出量(近似)","完成率","準時交付率","工時效率(近似)"];
+  const data = [
+    clamp0(bd.weightedOutput/(1.5*ROLLING_WINDOW_DAYS)*100),
+    bd.completionRate, bd.ontime,
+    bd.totalHours>0 ? clamp0((bd.weightedOutput/bd.totalHours)/(0.5)*100) : (bd.weightedOutput>0?100:0)
+  ];
+  if (chartRadar) chartRadar.destroy();
+  chartRadar = new Chart(ctx, { type:"radar", data:{ labels, datasets:[{ label:"產能子項", data, backgroundColor:"rgba(185,140,255,.25)", borderColor:"#9a6fe0", pointBackgroundColor:"#9a6fe0" }] },
+    options:{ scales:{ r:{ min:0, max:100, ticks:{ display:false }, grid:{ color:"rgba(107,114,128,.2)" }, angleLines:{ color:"rgba(107,114,128,.2)" }, pointLabels:{ font:{ size:10 }, color:"#4b5563" } } }, plugins:{ legend:{ display:false } } } });
+}
+function renderBar(bd, ghOn){
+  const ctx = document.getElementById("barChart");
+  if (typeof Chart === "undefined"){ chartFallback(ctx, "圖表函式庫載入失敗（可能是網路限制），略過長條圖"); return; }
+  const labels = ["證據覆蓋率","時間合理性","內容原創度","主管查核"];
+  const data = [bd.evidenceCoverage, bd.timing, bd.duplicate, bd.auditScore];
+  if (chartBar) chartBar.destroy();
+  chartBar = new Chart(ctx, { type:"bar", data:{ labels, datasets:[{ label:"誠信子項", data, backgroundColor:"#6d8cff", borderRadius:6 }] },
+    options:{ indexAxis:"y", scales:{ x:{ min:0, max:100, grid:{ color:"rgba(107,114,128,.15)" } }, y:{ grid:{ display:false } } }, plugins:{ legend:{ display:false } } } });
+}
+function renderTrend(trend){
+  const ctx = document.getElementById("trendChart");
+  if (typeof Chart === "undefined"){ chartFallback(ctx, "圖表函式庫載入失敗（可能是網路限制），略過趨勢圖"); return; }
+  if (chartTrend) chartTrend.destroy();
+  chartTrend = new Chart(ctx, { type:"line", data:{ labels: trend.map(t=>t.date.slice(5)), datasets:[
+    { label:"誠信分數", data:trend.map(t=>t.authenticity), borderColor:"#6d8cff", backgroundColor:"rgba(109,140,255,.15)", tension:.3 },
+    { label:"產能分數", data:trend.map(t=>t.productivity), borderColor:"#2fae74", backgroundColor:"rgba(47,174,116,.15)", tension:.3 }
+  ] }, options:{ scales:{ y:{ min:0, max:100 } }, plugins:{ legend:{ position:"bottom", labels:{ boxWidth:10, font:{ size:10 } } } } } });
+}
+
+const STATUS_COLOR = { "已完成":"#2fae74", "進行中":"#5b7cf0", "延遲或卡關":"#e0526a", "取消":"#9aa2b1", "請假或無工作":"#b98cff" };
+function renderStatusChart(tasks){
+  const ctx = document.getElementById("statusChart");
+  if (typeof Chart === "undefined"){ chartFallback(ctx, "圖表函式庫載入失敗，略過狀態圖"); return; }
+  const counts = {};
+  tasks.forEach(t=>{ counts[t.status] = (counts[t.status]||0)+1; });
+  const labels = Object.keys(counts);
+  if (chartStatus) chartStatus.destroy();
+  if (!labels.length){ chartFallback(ctx, "此區間無任務資料"); return; }
+  chartStatus = new Chart(ctx, { type:"doughnut", data:{ labels, datasets:[{ data: labels.map(l=>counts[l]), backgroundColor: labels.map(l=>STATUS_COLOR[l]||"#999") }] },
+    options:{ plugins:{ legend:{ position:"bottom", labels:{ boxWidth:8, font:{ size:9 } } }, title:{ display:true, text:"任務狀態分佈", font:{ size:11 } } } } });
+}
+function renderProjectChart(tasks){
+  const ctx = document.getElementById("projectChart");
+  if (typeof Chart === "undefined"){ chartFallback(ctx, "圖表函式庫載入失敗，略過專案圖"); return; }
+  const hours = {};
+  tasks.filter(t=>t.status!=="取消"&&t.status!=="請假或無工作").forEach(t=>{
+    const key = t.project && t.project.trim() ? t.project.trim() : "未分類";
+    hours[key] = (hours[key]||0) + (t.actHours||0);
+  });
+  const labels = Object.keys(hours).filter(k=>hours[k]>0);
+  if (chartProject) chartProject.destroy();
+  if (!labels.length){ chartFallback(ctx, "此區間無工時資料"); return; }
+  const palette = ["#6d8cff","#2fae74","#d9971f","#b98cff","#e0526a","#4fc3d9","#f2a65a"];
+  chartProject = new Chart(ctx, { type:"doughnut", data:{ labels, datasets:[{ data: labels.map(l=>hours[l]), backgroundColor: labels.map((l,i)=>palette[i%palette.length]) }] },
+    options:{ plugins:{ legend:{ position:"bottom", labels:{ boxWidth:8, font:{ size:9 } } }, title:{ display:true, text:"專案工時分佈", font:{ size:11 } } } } });
+}
+
+async function submitAudit(name){
+  if (!ADMIN_KEY){
+    ADMIN_KEY = sessionStorage.getItem("wr_admin_key") || prompt("請輸入管理密鑰（需與 Apps Script 端 ADMIN_KEY 一致）") || "";
+    if (ADMIN_KEY) sessionStorage.setItem("wr_admin_key", ADMIN_KEY);
+  }
+  const date = document.getElementById("auditDate").value;
+  const status = document.getElementById("auditStatus").value;
+  const note = document.getElementById("auditNote").value;
+  const msg = document.getElementById("auditMsg");
+  msg.textContent = "送出中…"; msg.style.color = "var(--sub)";
+  try {
+    if (isDemo){
+      db.audit = db.audit || [];
+      db.audit.push({ name, date, status, note, reviewer:"CEO(demo)", ts:new Date().toISOString() });
+      msg.textContent = "已標記（示範模式，僅存本機）"; msg.style.color = "#1f7a52";
+      openDetail(name); renderTeamList();
+      return;
+    }
+    const res = await fetch(API_URL, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify({ action:"setAudit", adminKey:ADMIN_KEY, name, date, status, note }) });
+    const json = await res.json();
+    if (json.ok){ msg.textContent = "已更新查核紀錄"; msg.style.color = "#1f7a52"; loadDashboard(); }
+    else { msg.textContent = "失敗：" + json.error; msg.style.color = "#b8354a"; }
+  } catch(e){ msg.textContent = "送出失敗：" + e.message; msg.style.color = "#b8354a"; }
+}
+
+function renderAll(){
+  renderTeamList();
+  if (!scene3DFailed) { try { render3D(); } catch(e){ console.warn("3D 節點渲染失敗", e); } }
+  if (selectedPerson) openDetail(selectedPerson);
+}
+
+/* ====== 3D 場景 ====== */
+let renderer, scene, camera, sceneRoot, nodeGroup, glowTex;
+let camAngleY=0.55, camAngleX=0.5, camDist=13;
+let dragging=false, lastX=0, lastY=0, moved=0;
+let nodeMeshes = [];
+let scene3DFailed = false;
+
+function mapAxis(v){ return (clamp0(v)/100)*12 - 6; }
+
+function initScene(){
+  const holder = document.getElementById("scene");
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  holder.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(48, window.innerWidth/window.innerHeight, 0.1, 200);
+  sceneRoot = new THREE.Group(); scene.add(sceneRoot);
+  nodeGroup = new THREE.Group(); sceneRoot.add(nodeGroup);
+
+  glowTex = makeGlowTexture();
+  buildFloor();
+  updateCamera();
+
+  window.addEventListener("resize", onResize);
+  const dom = renderer.domElement;
+  dom.addEventListener("pointerdown", e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; moved=0; autoRotate=false; });
+  window.addEventListener("pointermove", e=>{
+    if (!dragging) return;
+    const dx=e.clientX-lastX, dy=e.clientY-lastY; moved += Math.abs(dx)+Math.abs(dy);
+    camAngleY -= dx*0.006; camAngleX = Math.max(0.15, Math.min(1.3, camAngleX + dy*0.005));
+    lastX=e.clientX; lastY=e.clientY; updateCamera();
+  });
+  window.addEventListener("pointerup", e=>{
+    if (dragging && moved<6) pickNode(e.clientX, e.clientY);
+    dragging=false;
+  });
+  dom.addEventListener("wheel", e=>{ e.preventDefault(); camDist = Math.max(7, Math.min(24, camDist + e.deltaY*0.01)); updateCamera(); }, { passive:false });
+
+  animate();
+}
+function onResize(){ camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+function updateCamera(){
+  const x = camDist*Math.sin(camAngleY)*Math.cos(camAngleX);
+  const z = camDist*Math.cos(camAngleY)*Math.cos(camAngleX);
+  const y = camDist*Math.sin(camAngleX)+2.2;
+  camera.position.set(x, Math.max(2.5,y), z);
+  camera.lookAt(0,1.6,0);
+}
+function makeGlowTexture(){
+  const c = document.createElement("canvas"); c.width=c.height=128;
+  const g = c.getContext("2d");
+  const gr = g.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,"rgba(255,255,255,.95)"); gr.addColorStop(.4,"rgba(255,255,255,.5)"); gr.addColorStop(1,"rgba(255,255,255,0)");
+  g.fillStyle=gr; g.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(c);
+}
+function makeLabelSprite(text, color){
+  const c = document.createElement("canvas"); c.width=256; c.height=72;
+  const g = c.getContext("2d");
+  g.font = "bold 30px -apple-system,'PingFang TC',sans-serif";
+  const w = g.measureText(text).width;
+  g.fillStyle = "rgba(255,255,255,.88)";
+  roundRect(g, 128-w/2-16, 8, w+32, 48, 20); g.fill();
+  g.fillStyle = color;
+  g.fillRect(128-w/2-16, 50, w+32, 4);
+  g.fillStyle = "#2b2f3a";
+  g.textAlign="center"; g.textBaseline="middle";
+  g.fillText(text, 128, 32);
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false });
+  const spr = new THREE.Sprite(mat); spr.scale.set(1.8,0.5,1);
+  return spr;
+}
+function roundRect(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+
+function buildFloor(){
+  const R=6, TH=mapAxis(QUADRANT_THRESHOLD);
+  const quads = [
+    { x0:-R, x1:TH, z0:-R, z1:TH, color:0xe0526a },  // 低產能低誠信 → 高風險
+    { x0:TH, x1:R,  z0:-R, z1:TH, color:0xd9971f },  // 高產能低誠信 → 需查核
+    { x0:-R, x1:TH, z0:TH, z1:R,  color:0x5b7cf0 },  // 低產能高誠信 → 待協助
+    { x0:TH, x1:R,  z0:TH, z1:R,  color:0x2fae74 }   // 高產能高誠信 → 明星
+  ];
+  quads.forEach(q=>{
+    const w=q.x1-q.x0, d=q.z1-q.z0;
+    const geo = new THREE.PlaneGeometry(w,d);
+    const mat = new THREE.MeshBasicMaterial({ color:q.color, transparent:true, opacity:.16, side:THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI/2;
+    mesh.position.set(q.x0+w/2, 0, q.z0+d/2);
+    sceneRoot.add(mesh);
+  });
+  const grid = new THREE.GridHelper(12, 12, 0xb9c2d6, 0xd7dce6);
+  grid.position.y = 0.01;
+  sceneRoot.add(grid);
+  const lineMat = new THREE.LineBasicMaterial({ color:0x8892a8, transparent:true, opacity:.7 });
+  const l1 = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(TH,0.02,-R), new THREE.Vector3(TH,0.02,R)]), lineMat);
+  const l2 = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-R,0.02,TH), new THREE.Vector3(R,0.02,TH)]), lineMat);
+  sceneRoot.add(l1, l2);
+
+  const axisColor = "#6b7280";
+  const xLabel = makeLabelSprite("產能 →", axisColor); xLabel.position.set(R+1,0.4,-R-0.6); sceneRoot.add(xLabel);
+  const zLabel = makeLabelSprite("↑ 誠信", axisColor); zLabel.position.set(-R-1.4,0.4,R+1); sceneRoot.add(zLabel);
+}
+
+function render3D(){
+  nodeGroup.clear();
+  nodeMeshes = [];
+  const { from, to } = filteredRange();
+  personsInScope().forEach(r=>{
+    const score = latestScore(r.name, from, to);
+    if (!score) return;
+    const x = mapAxis(score.productivity), z = mapAxis(score.authenticity);
+    const baseY = 1.0;
+    const size = 0.28 + Math.min(0.35, (score.taskCount||0)*0.03);
+    const color = QCOLOR_HEX[score.quadrant] || 0x999999;
+
+    const grp = new THREE.Group();
+    grp.position.set(x, baseY, z);
+    grp.userData = { phase: Math.random()*Math.PI*2, baseY };
+
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(size,1), new THREE.MeshBasicMaterial({ color, transparent:true, opacity: r.status==="在職"?0.95:0.4 }));
+    grp.add(core);
+    const wire = new THREE.Mesh(new THREE.IcosahedronGeometry(size*1.5,1), new THREE.MeshBasicMaterial({ color, wireframe:true, transparent:true, opacity:.35 }));
+    grp.add(wire);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color, transparent:true, opacity:.55, depthWrite:false }));
+    halo.scale.set(size*4.5, size*4.5, 1); grp.add(halo);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(size*1.9,0.012,8,40), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:.6 }));
+    ring.rotation.x = Math.PI/2; grp.add(ring);
+    const hit = new THREE.Mesh(new THREE.SphereGeometry(size*2.6,10,10), new THREE.MeshBasicMaterial({ visible:false }));
+    grp.add(hit);
+    const label = makeLabelSprite(r.name, QCOLOR[score.quadrant]||"#999"); label.position.set(0,size*3.2,0); grp.add(label);
+
+    nodeGroup.add(grp);
+    nodeMeshes.push({ hit, name:r.name });
+  });
+}
+
+function pickNode(clientX, clientY){
+  const rect = renderer.domElement.getBoundingClientRect();
+  const mouse = new THREE.Vector2(((clientX-rect.left)/rect.width)*2-1, -((clientY-rect.top)/rect.height)*2+1);
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(nodeMeshes.map(n=>n.hit));
+  if (hits.length){
+    const found = nodeMeshes.find(n=>n.hit===hits[0].object);
+    if (found) openDetail(found.name);
+  }
+}
+
+function animate(t){
+  requestAnimationFrame(animate);
+  const time = (t||0)/1000;
+  nodeGroup.children.forEach(grp=>{
+    grp.position.y = grp.userData.baseY + Math.sin(time*1.2+grp.userData.phase)*0.12;
+    grp.rotation.y += 0.004;
+  });
+  if (autoRotate){ camAngleY += 0.0016; updateCamera(); }
+  renderer.render(scene, camera);
+}
+
+function showScene3DFallback(){
+  scene3DFailed = true;
+  document.getElementById("scene").innerHTML =
+    '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px;">' +
+    '<div style="max-width:360px;color:var(--sub);font-size:13px;line-height:1.7;">' +
+    '⚠ 3D 視覺化函式庫載入失敗（可能是網路限制擋住外部 CDN）<br>已切換為僅列表模式，左側「團隊總覽」與點擊後的詳情圖表仍可正常使用。' +
+    '</div></div>';
+  document.getElementById("autoRotateBtn").style.display = "none";
+}
+
+/* ====== 事件綁定 ====== */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function escAttr(s){ return esc(s); }
+
+document.getElementById("rangePills").addEventListener("click", e=>{
+  const btn = e.target.closest("button"); if (!btn) return;
+  document.querySelectorAll("#rangePills button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active"); rangeMode = btn.dataset.r;
+  loadDashboard();
+});
+document.getElementById("personFilter").addEventListener("change", e=>{ personFilter = e.target.value; renderAll(); });
+document.getElementById("syncBtn").addEventListener("click", loadDashboard);
+document.getElementById("alertToggle").addEventListener("click", ()=>{ alertFilter = !alertFilter; renderTeamList(); if (window.innerWidth<=900) document.getElementById("teamPanel").classList.add("open"); });
+document.getElementById("rankToggle").addEventListener("click", ()=>{ rankChartOpen = !rankChartOpen; renderTeamList(); });
+document.getElementById("teamToggle").addEventListener("click", ()=>document.getElementById("teamPanel").classList.toggle("open"));
+document.getElementById("autoRotateBtn").addEventListener("click", ()=>{ autoRotate = !autoRotate; });
+
+try {
+  if (typeof THREE === "undefined") throw new Error("THREE 未載入");
+  initScene();
+} catch(e){
+  console.warn("3D 場景初始化失敗，切換為僅列表模式：", e);
+  showScene3DFallback();
+}
+loadDashboard();
+setInterval(loadDashboard, 60000);
+if (window.innerWidth > 900) document.getElementById("teamPanel").classList.add("open");
+</script>
+</body>
+</html>

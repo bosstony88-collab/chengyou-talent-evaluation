@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>克雷斯技術團隊每日工作回報</title>
+<style>
+  :root{
+    --bg1:#eef4ff; --bg2:#f7ecff; --bg3:#fef6ef;
+    --ink:#2b2f3a; --sub:#6b7280;
+    --glass:rgba(255,255,255,.62); --glass-strong:rgba(255,255,255,.85);
+    --border:rgba(255,255,255,.7);
+    --accent1:#6d8cff; --accent2:#b98cff; --accent3:#ff9ecb;
+    --ok:#3fb37f; --warn:#e6a23c; --danger:#e2586b;
+    --shadow:0 8px 32px rgba(45,55,95,.10);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;min-height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+    color:var(--ink);
+    background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 50%,var(--bg3) 100%);
+    background-attachment:fixed;
+    min-height:100vh;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .wrap{max-width:560px;margin:0 auto;padding:22px 16px 90px;}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+  .brand .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,var(--accent1),var(--accent3));box-shadow:0 0 0 6px rgba(109,140,255,.15);}
+  .brand h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.3px;}
+  .brand small{display:block;color:var(--sub);font-size:12px;margin-top:1px;}
+
+  .card{
+    background:var(--glass); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--border); border-radius:20px; box-shadow:var(--shadow);
+    padding:20px; margin-bottom:16px;
+  }
+  .card h2{font-size:15px;margin:0 0 14px;font-weight:700;}
+  label{display:block;font-size:12.5px;color:var(--sub);margin:12px 0 6px;font-weight:600;}
+  label:first-child{margin-top:0;}
+  input[type=text],input[type=number],input[type=date],input[type=url],textarea,select{
+    width:100%;padding:11px 13px;border-radius:12px;border:1px solid rgba(107,114,128,.25);
+    background:rgba(255,255,255,.75);font-size:15px;color:var(--ink);font-family:inherit;
+  }
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--accent1);outline-offset:1px;}
+  textarea{resize:vertical;min-height:64px;}
+  .hint{font-size:12px;color:var(--sub);margin-top:6px;line-height:1.5;}
+  .hint.warn{color:#a16207;}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    border:none;border-radius:14px;padding:13px 20px;font-size:15px;font-weight:700;cursor:pointer;
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 6px 18px rgba(109,140,255,.35);width:100%;}
+  .btn-ghost{background:rgba(255,255,255,.6);color:var(--ink);border:1px solid rgba(107,114,128,.25);width:100%;}
+  .btn-soft{background:rgba(109,140,255,.12);color:#4a5fd6;width:100%;}
+  .btn-danger-text{background:transparent;color:var(--danger);padding:6px 10px;font-size:13px;font-weight:600;}
+  .copy-btn{margin-top:8px;background:rgba(109,140,255,.12);color:#4a5fd6;border:none;border-radius:10px;
+    padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+  .btn-row{display:flex;gap:10px;}
+  .btn-row .btn{flex:1;}
+
+  .complexity-group{display:flex;gap:8px;}
+  .complexity-group button{
+    flex:1;padding:10px 0;border-radius:12px;border:1px solid rgba(107,114,128,.25);
+    background:rgba(255,255,255,.6);font-weight:700;font-size:14px;cursor:pointer;color:var(--sub);
+  }
+  .complexity-group button.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;border-color:transparent;}
+
+  .task-row{
+    display:flex;gap:10px;
+  }
+  .task-row > div{flex:1;}
+
+  .banner{
+    border-radius:16px;padding:12px 16px;font-size:13px;margin-bottom:16px;font-weight:600;
+    display:flex;align-items:center;gap:8px;
+  }
+  .banner.demo{background:rgba(230,162,60,.15);color:#9a6b0f;border:1px solid rgba(230,162,60,.3);}
+  .banner.err{background:rgba(226,88,107,.12);color:#b8354a;border:1px solid rgba(226,88,107,.3);}
+  .banner.ok{background:rgba(63,179,127,.12);color:#1f7a52;border:1px solid rgba(63,179,127,.3);}
+
+  .today-list{list-style:none;margin:0;padding:0;}
+  .today-item{
+    background:rgba(255,255,255,.55);border-radius:14px;padding:12px 14px;margin-bottom:10px;
+    border:1px solid rgba(255,255,255,.7);
+  }
+  .today-item .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .today-item .top strong{font-size:14px;}
+  .status-pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .status-已完成{background:rgba(63,179,127,.18);color:#1f7a52;}
+  .status-進行中{background:rgba(109,140,255,.18);color:#4a5fd6;}
+  .status-延遲或卡關{background:rgba(226,88,107,.18);color:#b8354a;}
+  .status-取消{background:rgba(107,114,128,.18);color:#4b5563;}
+  .status-請假或無工作{background:rgba(185,140,255,.18);color:#7a4fd6;}
+  .today-item .meta{font-size:12px;color:var(--sub);margin-top:6px;}
+  .pending-item{position:relative;}
+  .pending-item .remove{position:absolute;top:10px;right:10px;}
+
+  .empty{text-align:center;color:var(--sub);font-size:13px;padding:20px 0;}
+
+  .login-logo{
+    width:64px;height:64px;margin:0 auto 14px;border-radius:20px;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2),var(--accent3));
+    box-shadow:0 10px 24px rgba(109,140,255,.35);
+  }
+  .checkbox-row{display:flex;align-items:center;gap:8px;margin:14px 0 4px;}
+  .checkbox-row input{width:auto;}
+  .checkbox-row label{margin:0;color:var(--ink);font-weight:500;}
+
+  .footer-note{text-align:center;color:var(--sub);font-size:11.5px;margin-top:18px;line-height:1.6;}
+
+  .sticky-submit{
+    position:fixed;left:0;right:0;bottom:0;padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top, rgba(247,236,255,.95) 60%, rgba(247,236,255,0));
+  }
+  .sticky-submit .inner{max-width:560px;margin:0 auto;display:flex;gap:10px;}
+
+  .demo-names{font-size:12px;color:#9a6b0f;margin-top:6px;}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+/* ====== 設定：部署 Apps Script Web App 後，把 .../exec 網址貼在這裡 ====== */
+const API_URL = "";
+const STORAGE_KEY_SESSION = "wr_session_v1";
+const STORAGE_KEY_DRAFTS  = "wr_drafts_v1";
+const STORAGE_KEY_HISTORY = "wr_project_history_v1";
+const STORAGE_KEY_LAST    = "wr_last_defaults_v1";
+const STATUS_OPTIONS = ["已完成","進行中","延遲或卡關","取消","請假或無工作"];
+const COMPLEXITY_LABELS = {1:"1・輕鬆",2:"2・普通",3:"3・中等",4:"4・吃力",5:"5・硬仗"};
+const MIN_DESC_LENGTH = 8;
+
+// 用來預帶「複製上一筆」的來源任務；null 代表這次是全新填寫
+let copySourceTask = null;
+
+const isDemo = !API_URL;
+let demoFixture = null;
+let demoExtra = null; // 使用者在示範模式下自己新增的回報，存 localStorage
+
+const state = {
+  session: loadJSON(STORAGE_KEY_SESSION, null), // {name, pin}
+  todayTasks: [],
+  drafts: loadJSON(STORAGE_KEY_DRAFTS, []),
+  screen: "login",
+  loginError: "",
+  submitting: false,
+  submitMsg: null // {type:'ok'|'err', text}
+};
+
+function loadJSON(key, fallback){
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch(e){ return fallback; }
+}
+function saveJSON(key, val){ try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){} }
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function daysBetween(a, b){
+  const da = new Date(a+"T00:00:00"), db = new Date(b+"T00:00:00");
+  return Math.round((db-da)/86400000);
+}
+
+/* ====== API（CORS 對策：POST 用 text/plain 避開 preflight，見建置說明）====== */
+async function postAction(action, payload){
+  if (isDemo) return demoPost(action, payload);
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(Object.assign({ action }, payload))
+  });
+  if (!res.ok) throw new Error("網路錯誤 (" + res.status + ")");
+  return res.json();
+}
+
+async function loadDemoFixture(){
+  if (demoFixture) return demoFixture;
+  try {
+    const res = await fetch(new URL("demo-data.json", location.href));
+    demoFixture = await res.json();
+  } catch(e) {
+    demoFixture = { roster: [], tasks: [] };
+  }
+  return demoFixture;
+}
+function demoExtraKey(name){ return "wr_demo_extra_" + name; }
+function getDemoExtra(name){ return loadJSON(demoExtraKey(name), []); }
+function pushDemoExtra(name, tasks){
+  const cur = getDemoExtra(name);
+  const merged = cur.concat(tasks);
+  saveJSON(demoExtraKey(name), merged);
+}
+async function demoPost(action, payload){
+  await loadDemoFixture();
+  const roster = demoFixture.roster || [];
+  if (action === "login"){
+    const person = roster.find(r => r.name === payload.name);
+    if (!person){
+      return { ok:false, error:"示範模式僅接受示範名單中的姓名（見下方名單），任意4碼PIN即可" };
+    }
+    const today = todayStr();
+    const fixtureToday = (demoFixture.tasks||[]).filter(t => t.name===payload.name && t.date===today);
+    const extraToday = getDemoExtra(payload.name).filter(t => t.date===today);
+    return { ok:true, name:person.name, todayTasks: fixtureToday.concat(extraToday) };
+  }
+  if (action === "submitReport"){
+    pushDemoExtra(payload.name, payload.tasks);
+    return { ok:true, savedCount: payload.tasks.length };
+  }
+  return { ok:false, error:"示範模式不支援此操作" };
+}
+
+/* ====== 事件處理 ====== */
+async function handleLogin(name, pin, remember){
+  state.loginError = "";
+  if (!name.trim() || !/^\d{4}$/.test(pin)){
+    state.loginError = "請輸入姓名，PIN 需為 4 位數字";
+    render(); return;
+  }
+  try {
+    const res = await postAction("login", { name: name.trim(), pin });
+    if (!res.ok){ state.loginError = res.error || "登入失敗"; render(); return; }
+    state.session = { name: res.name, pin };
+    state.todayTasks = res.todayTasks || [];
+    state.screen = "main";
+    if (remember) saveJSON(STORAGE_KEY_SESSION, state.session);
+    else localStorage.removeItem(STORAGE_KEY_SESSION);
+    render();
+  } catch(e){
+    state.loginError = "連線失敗：" + e.message;
+    render();
+  }
+}
+
+function handleLogout(){
+  state.session = null; state.todayTasks = []; state.drafts = [];
+  localStorage.removeItem(STORAGE_KEY_SESSION);
+  saveJSON(STORAGE_KEY_DRAFTS, []);
+  state.screen = "login";
+  render();
+}
+
+function addDraft(task){
+  state.drafts.push(task);
+  saveJSON(STORAGE_KEY_DRAFTS, state.drafts);
+  if (task.project){
+    const hist = loadJSON(STORAGE_KEY_HISTORY, []);
+    if (!hist.includes(task.project)){ hist.unshift(task.project); saveJSON(STORAGE_KEY_HISTORY, hist.slice(0,10)); }
+  }
+  render();
+}
+function removeDraft(idx){
+  state.drafts.splice(idx,1);
+  saveJSON(STORAGE_KEY_DRAFTS, state.drafts);
+  render();
+}
+
+async function submitAllDrafts(){
+  if (!state.drafts.length || state.submitting) return;
+  state.submitting = true; state.submitMsg = null; render();
+  try {
+    const res = await postAction("submitReport", { name: state.session.name, pin: state.session.pin, tasks: state.drafts });
+    if (res.ok){
+      state.todayTasks = state.todayTasks.concat(state.drafts.filter(t => t.date === todayStr()));
+      state.drafts = [];
+      saveJSON(STORAGE_KEY_DRAFTS, []);
+      state.submitMsg = { type:"ok", text:"已送出 " + res.savedCount + " 筆回報" };
+    } else {
+      state.submitMsg = { type:"err", text: res.error || "送出失敗，請重試（草稿已保留）" };
+    }
+  } catch(e){
+    state.submitMsg = { type:"err", text: "送出失敗：" + e.message + "（草稿已保留，請確認網路後重試）" };
+  }
+  state.submitting = false; render();
+}
+
+async function submitLeaveToday(){
+  if (state.submitting) return;
+  const already = state.todayTasks.some(t => t.status === "請假或無工作") || state.drafts.some(t => t.status === "請假或無工作");
+  if (already) return;
+  state.submitting = true; render();
+  const task = { date: todayStr(), project:"", desc:"今日無工作/請假", complexity:0, estHours:0, actHours:0, status:"請假或無工作", plannedDate:"", evidenceUrl:"", noEvidenceReason:"", note:"" };
+  try {
+    const res = await postAction("submitReport", { name: state.session.name, pin: state.session.pin, tasks:[task] });
+    if (res.ok){ state.todayTasks.push(task); state.submitMsg = { type:"ok", text:"已記錄今日無工作/請假" }; }
+    else { state.submitMsg = { type:"err", text: res.error || "送出失敗" }; }
+  } catch(e){ state.submitMsg = { type:"err", text:"送出失敗：" + e.message }; }
+  state.submitting = false; render();
+}
+
+/* ====== 畫面渲染 ====== */
+function render(){
+  const app = document.getElementById("app");
+  app.innerHTML = brandHTML() + (isDemo ? demoBannerHTML() : "") +
+    (state.screen === "login" ? loginScreenHTML() : mainScreenHTML());
+  bindEvents();
+}
+
+function brandHTML(){
+  return `
+  <div class="brand">
+    <div class="dot"></div>
+    <div><h1>克雷斯技術團隊每日工作回報</h1><small>${state.session ? "您好，"+esc(state.session.name) : "程優教育科技 · 克雷斯技術團隊"}</small></div>
+  </div>`;
+}
+
+function demoBannerHTML(){
+  return `<div class="banner demo">🧪 示範模式：API_URL 尚未設定，資料僅存在本機瀏覽器，不會送到任何伺服器</div>`;
+}
+
+function loginScreenHTML(){
+  const hist = isDemo ? (demoFixture ? (demoFixture.roster||[]).map(r=>r.name) : []) : [];
+  return `
+  <div class="card">
+    <div class="login-logo"></div>
+    <h2 style="text-align:center;font-size:17px;">登入回報</h2>
+    ${state.loginError ? `<div class="banner err">${esc(state.loginError)}</div>` : ""}
+    <label for="f-name">姓名</label>
+    <input type="text" id="f-name" placeholder="請輸入登記姓名" autocomplete="name">
+    <label for="f-pin">通行碼（4 碼）</label>
+    <input type="text" id="f-pin" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+    <div class="checkbox-row">
+      <input type="checkbox" id="f-remember" checked>
+      <label for="f-remember">記住我（下次自動帶入，仍會重新驗證）</label>
+    </div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-primary" id="btn-login">登入</button>
+    </div>
+    ${isDemo ? `<div class="demo-names">示範帳號（PIN 任填4碼即可）：${hist.map(esc).join("、") || "載入中…"}</div>` : ""}
+  </div>
+  <div class="footer-note">此系統僅記錄工作內容供公司評估產能與真實性，請誠實填寫。若忘記通行碼請聯繫公司窗口。</div>
+  `;
+}
+
+function mainScreenHTML(){
+  const already = state.todayTasks.some(t => t.status === "請假或無工作");
+  return `
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="margin:0;">今日（${todayStr()}）已回報 ${state.todayTasks.length} 筆</h2>
+      <button class="btn-danger-text" id="btn-logout">登出</button>
+    </div>
+    ${todayListHTML()}
+    <div class="btn-row" style="margin-top:14px;">
+      <button class="btn btn-soft" id="btn-leave" ${already ? "disabled" : ""}>${already ? "今日已標記無工作" : "＋ 今日無工作／請假"}</button>
+    </div>
+  </div>
+
+  <div class="card" id="draft-card">
+    <h2>待送出草稿（${state.drafts.length}）</h2>
+    ${draftListHTML()}
+    <button class="btn btn-ghost" id="btn-add-task" style="margin-top:6px;">＋ 新增今日任務</button>
+  </div>
+
+  <div id="form-slot"></div>
+
+  ${state.submitMsg ? `<div class="banner ${state.submitMsg.type==='ok'?'ok':'err'}">${esc(state.submitMsg.text)}</div>` : ""}
+
+  <div class="sticky-submit">
+    <div class="inner">
+      <button class="btn btn-primary" id="btn-submit-all" ${(!state.drafts.length||state.submitting) ? "disabled" : ""}>
+        ${state.submitting ? "送出中…" : "送出全部草稿（" + state.drafts.length + "）"}
+      </button>
+    </div>
+  </div>
+  `;
+}
+
+function todayListHTML(){
+  if (!state.todayTasks.length) return `<div class="empty">今天還沒有任何回報紀錄</div>`;
+  return `<ul class="today-list">` + state.todayTasks.map((t,i) => `
+    <li class="today-item">
+      <div class="top">
+        <strong>${esc(t.desc || "（無標題）")}</strong>
+        <span class="status-pill status-${esc(t.status)}">${esc(t.status)}</span>
+      </div>
+      <div class="meta">${esc(t.project||"—")} · 複雜度 ${t.complexity||0} · 實際 ${t.actHours||0}h ${t.evidenceUrl ? " · 已附證據連結" : ""}</div>
+      ${t.status!=="請假或無工作" ? `<button class="copy-btn" data-copy-today="${i}">📋 延續這項任務</button>` : ""}
+    </li>`).join("") + `</ul>`;
+}
+
+function draftListHTML(){
+  if (!state.drafts.length) return `<div class="empty">尚未新增任務，點下方按鈕開始填寫</div>`;
+  return `<ul class="today-list">` + state.drafts.map((t,i) => `
+    <li class="today-item pending-item">
+      <button class="btn-danger-text remove" data-remove="${i}">移除</button>
+      <div class="top"><strong>${esc(t.desc || "（無標題）")}</strong></div>
+      <div class="meta">${esc(t.date)} · ${esc(t.project||"—")} · 複雜度 ${t.complexity} · 狀態 ${esc(t.status)}${t.evidenceUrl ? " · 已附證據" : t.noEvidenceReason ? " · 無證據："+esc(t.noEvidenceReason) : " · ⚠未附證據"}</div>
+      <button class="copy-btn" data-copy-draft="${i}">📋 複製一份</button>
+    </li>`).join("") + `</ul>`;
+}
+
+function taskFormHTML(){
+  const hist = loadJSON(STORAGE_KEY_HISTORY, []);
+  const last = loadJSON(STORAGE_KEY_LAST, { project:"", complexity:2 });
+  const src = copySourceTask;
+  const dProject = esc(src ? (src.project||"") : (last.project||""));
+  const dComplexity = src ? (src.complexity||2) : (last.complexity||2);
+  const dEst = src ? (src.estHours||1) : 1;
+  const dAct = src ? (src.actHours||1) : 1;
+  const dDesc = esc(src ? (src.desc||"") : "");
+  return `
+  <div class="card">
+    <h2>${src ? "延續上一筆（請確認/修改內容）" : "新增任務"}</h2>
+    <label for="t-date">回報日期（工作實際發生日）</label>
+    <input type="date" id="t-date" value="${todayStr()}" max="${todayStr()}">
+    <div id="t-date-hint"></div>
+
+    <label for="t-project">專案／系統別</label>
+    <input type="text" id="t-project" list="t-project-hist" value="${dProject}" placeholder="例：會員後台、排課系統">
+    <datalist id="t-project-hist">${hist.map(h=>`<option value="${esc(h)}">`).join("")}</datalist>
+
+    <label for="t-desc">任務描述</label>
+    <textarea id="t-desc" placeholder="今天實際做了什麼？盡量具體（做了什麼、改了哪個功能），有助於系統判斷真實性">${dDesc}</textarea>
+    <div id="t-desc-hint"></div>
+
+    <label>複雜度自評</label>
+    <div class="complexity-group" id="t-complexity">
+      ${[1,2,3,4,5].map(n=>`<button type="button" data-c="${n}" class="${n===dComplexity?'active':''}">${n}</button>`).join("")}
+    </div>
+
+    <div class="task-row">
+      <div><label for="t-est">預估工時</label><input type="number" id="t-est" min="0" step="0.5" value="${dEst}"></div>
+      <div><label for="t-act">實際工時</label><input type="number" id="t-act" min="0" step="0.5" value="${dAct}"></div>
+    </div>
+
+    <label for="t-status">完成狀態</label>
+    <select id="t-status">
+      ${STATUS_OPTIONS.filter(s=>s!=="請假或無工作").map(s=>`<option value="${s}">${s}</option>`).join("")}
+    </select>
+
+    <label for="t-planned">原訂完成日（選填）</label>
+    <input type="date" id="t-planned">
+
+    <label for="t-evidence">證據連結（強烈建議填寫，https 開頭的連結可信度最高）</label>
+    <input type="url" id="t-evidence" placeholder="https://...（PR/commit/部署網址/雲端硬碟）">
+    <div id="t-noevidence-wrap" style="display:none;">
+      <label for="t-noevidence">沒有連結的話，簡短說明原因</label>
+      <input type="text" id="t-noevidence" placeholder="例：內部系統無公開連結，可截圖給主管">
+    </div>
+
+    <label for="t-note">備註（選填）</label>
+    <textarea id="t-note" placeholder="卡關原因、需要的協助等"></textarea>
+
+    <div class="btn-row" style="margin-top:14px;">
+      <button class="btn btn-ghost" id="btn-cancel-task">取消</button>
+      <button class="btn btn-primary" id="btn-save-task">加入草稿</button>
+    </div>
+  </div>`;
+}
+
+function bindEvents(){
+  const $ = (id) => document.getElementById(id);
+
+  if ($("btn-login")){
+    $("btn-login").onclick = () => handleLogin($("f-name").value, $("f-pin").value, $("f-remember").checked);
+  }
+  if ($("btn-logout")) $("btn-logout").onclick = handleLogout;
+  if ($("btn-leave")) $("btn-leave").onclick = submitLeaveToday;
+  if ($("btn-submit-all")) $("btn-submit-all").onclick = submitAllDrafts;
+
+  document.querySelectorAll("[data-remove]").forEach(btn=>{
+    btn.onclick = () => removeDraft(Number(btn.dataset.remove));
+  });
+  document.querySelectorAll("[data-copy-today]").forEach(btn=>{
+    btn.onclick = () => openTaskForm(state.todayTasks[Number(btn.dataset.copyToday)]);
+  });
+  document.querySelectorAll("[data-copy-draft]").forEach(btn=>{
+    btn.onclick = () => openTaskForm(state.drafts[Number(btn.dataset.copyDraft)]);
+  });
+
+  if ($("btn-add-task")){
+    $("btn-add-task").onclick = () => openTaskForm(null);
+  }
+}
+
+function openTaskForm(source){
+  copySourceTask = source || null;
+  const slot = document.getElementById("form-slot");
+  slot.innerHTML = taskFormHTML();
+  bindFormEvents();
+  slot.scrollIntoView({behavior:"smooth"});
+}
+
+function bindFormEvents(){
+  const $ = (id) => document.getElementById(id);
+  let complexity = Number($("t-complexity").querySelector(".active")?.dataset.c) || 2;
+
+  $("t-complexity").querySelectorAll("button").forEach(btn=>{
+    btn.onclick = () => {
+      complexity = Number(btn.dataset.c);
+      $("t-complexity").querySelectorAll("button").forEach(b=>b.classList.toggle("active", b===btn));
+    };
+  });
+
+  $("t-date").onchange = () => {
+    const diff = daysBetween($("t-date").value, todayStr());
+    const hint = $("t-date-hint");
+    if (diff > 1){
+      hint.innerHTML = `<div class="hint warn">⚠ 此日期距今 ${diff} 天，送出後會被系統標記為「補登」，請誠實填寫實際工作日期</div>`;
+    } else { hint.innerHTML = ""; }
+  };
+
+  $("t-desc").oninput = () => {
+    const len = $("t-desc").value.trim().length;
+    const hint = $("t-desc-hint");
+    hint.innerHTML = (len>0 && len<MIN_DESC_LENGTH)
+      ? `<div class="hint warn">描述有點簡短，建議具體說明做了什麼，有助於提高回報可信度</div>` : "";
+  };
+
+  $("t-evidence").oninput = () => {
+    $("t-noevidence-wrap").style.display = $("t-evidence").value.trim() ? "none" : "block";
+  };
+  $("t-noevidence-wrap").style.display = $("t-evidence").value.trim() ? "none" : "block";
+
+  $("btn-cancel-task").onclick = () => { copySourceTask = null; document.getElementById("form-slot").innerHTML = ""; };
+
+  $("btn-save-task").onclick = () => {
+    const desc = $("t-desc").value.trim();
+    if (!desc){ alert("請填寫任務描述"); return; }
+    const date = $("t-date").value || todayStr();
+    const project = $("t-project").value.trim();
+    saveJSON(STORAGE_KEY_LAST, { project, complexity });
+    addDraft({
+      date, project, desc,
+      complexity, estHours: Number($("t-est").value)||0, actHours: Number($("t-act").value)||0,
+      status: $("t-status").value, plannedDate: $("t-planned").value || "",
+      evidenceUrl: $("t-evidence").value.trim(), noEvidenceReason: $("t-noevidence").value.trim(),
+      note: $("t-note").value.trim()
+    });
+    copySourceTask = null;
+    document.getElementById("form-slot").innerHTML = "";
+  };
+}
+
+function esc(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+/* ====== 啟動 ====== */
+async function boot(){
+  if (isDemo) await loadDemoFixture();
+  if (state.session && state.session.name){
+    await handleLogin(state.session.name, state.session.pin, true);
+  } else {
+    state.screen = "login";
+    render();
+  }
+}
+boot();
+</script>
+</body>
+</html>
