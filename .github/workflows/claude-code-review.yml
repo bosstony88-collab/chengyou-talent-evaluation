@@ -1,0 +1,49 @@
+name: Claude Code Review
+
+# 這個 workflow 會在每次 PR 開啟/更新時，自動觸發 Claude 對這次變更做程式碼審查，
+# 並把審查意見以 PR comment 的方式貼回去（不需要人工在留言區 @claude 才會跑）。
+#
+# 使用前需在repo設定一次性密鑰（本workflow檔本身不含任何金鑰）：
+#   Settings → Secrets and variables → Actions → New repository secret
+#   名稱: ANTHROPIC_API_KEY（從 https://console.anthropic.com 取得）
+#   或改用 Claude 訂閱帳號的長效權杖: CLAUDE_CODE_OAUTH_TOKEN（本機執行 `claude setup-token` 產生），
+#   兩者擇一即可，並把下方 `anthropic_api_key` 改成對應的 secrets 名稱。
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            請審查這個 pull request 的變更，重點檢查：
+            - 邏輯錯誤、邊界條件、明顯 bug
+            - 安全性問題（例如 XSS、密鑰外洩、不安全的外部資料處理）
+            - 是否有可簡化或重複的程式碼
+            這個repo主要是靜態網站（HTML/JS）與 school-scraper（Python 爬蟲），
+            請針對實際變更的檔案提出具體、簡潔的意見，不需要的話不用硬找問題。
+
+            審查完成後，請用 `gh pr comment ${{ github.event.pull_request.number }} --body "..."`
+            把審查結果貼成一則 PR comment。
+          claude_args: |
+            --allowed-tools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
